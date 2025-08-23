@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import Link from "next/link";
-import PaymentPage from "@/components/Paymentpage";
+import PaymentPage from "./Paymentpage";
 import { useSearchParams } from "next/navigation";
 
 export default function Dashboard() {

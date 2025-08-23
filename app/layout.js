@@ -1,14 +1,15 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Sessionwrapper from "@/components/Sessionwrapper";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import Sessionwrapper from "../components/Sessionwrapper";
+
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "next-themes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  subsets: ["latin"],  
 });
 
 const geistMono = Geist_Mono({
@@ -27,7 +28,7 @@ export default function RootLayout({ children }) {
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Sessionwrapper>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <Navbar />
+           <Navbar /> 
             <div className="min-h-[87vh] relative w-full h-full bg-[var(--background)]">
               <main className="relative z-10">{children}</main>
             </div>
