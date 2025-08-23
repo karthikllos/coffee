@@ -4,9 +4,9 @@ import GitHubProvider from "next-auth/providers/github";
 import LinkedInProvider from "next-auth/providers/linkedin";
 import TwitterProvider from "next-auth/providers/twitter";
 import mongoose from "mongoose";
-import User from "../models/user";
+import User from "../../../../models/user";
 
-import Payment from "@/models/Payment";
+import Payment from "../../../../models/Payment";
 
 const handler = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,

@@ -1,6 +1,6 @@
-import connectDb from "@/lib/connectDb";
-import Payment from "@/models/Payment";
-import User from "@/models/user";
+import connectDb from "../../../lib/connectDb";
+import Payment from "../../../models/Payment";
+import User from "../../../models/user";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

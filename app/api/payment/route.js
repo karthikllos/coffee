@@ -1,4 +1,4 @@
-import { initiateInteraction } from "@/actions/useractions";
+import { initiateInteraction } from "../../../actions/useractions";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";

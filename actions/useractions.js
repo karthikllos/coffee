@@ -1,8 +1,8 @@
 'use server';
 
-import connectDb from "@/lib/connectDb";
-import Payment from "@/models/Payment";
-import User from "@/models/user";
+import connectDb from "../lib/connectDb";
+import Payment from "../models/Payment";
+import User from "../models/user";
 
 // Create a payment entry
 export const initiateInteraction = async ({ amount, to_username, paymentform, orderId }) => {

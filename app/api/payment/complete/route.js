@@ -1,5 +1,5 @@
-import connectDb from "@/lib/connectDb";
-import Payment from "@/models/Payment";
+import connectDb from "../../../../lib/connectDb";
+import Payment from "../../../../models/Payment";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
