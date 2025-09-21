@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafb; /* Light gray background like FluxCRM */
-  --foreground: #1f2937; /* Darker text for better contrast */
-  --accent-from: #10b981; /* emerald-500 - matches the green cards */
-  --accent-to: #059669; /* emerald-600 - deeper green */
-  --accent-border: rgba(16, 185, 129, 0.2);
-  --accent-ring: rgba(16, 185, 129, 0.4);
-  --accent-shadow: rgba(16, 185, 129, 0.25);
-  --accent-solid: #059669; /* emerald-600 */
-  --surface: #ffffff; /* White cards */
-  --surface-2: #f1f5f9; /* Light slate background for subtle elements */
-  --surface-3: #e2e8f0; /* Even lighter for borders/dividers */
+  --background: #ffffff; /* Pure white professional background */
+  --foreground: #0f172a; /* Deep slate for professional text */
+  --accent-from: #3b82f6; /* Blue-500 - professional primary */
+  --accent-to: #1d4ed8; /* Blue-700 - deeper professional blue */
+  --accent-border: rgba(59, 130, 246, 0.2);
+  --accent-ring: rgba(59, 130, 246, 0.4);
+  --accent-shadow: rgba(59, 130, 246, 0.25);
+  --accent-solid: #2563eb; /* Blue-600 */
+  --surface: #f8fafc; /* Very light slate for cards */
+  --surface-2: #f1f5f9; /* Light slate background */
+  --surface-3: #e2e8f0; /* Slate-200 for borders */
   --input-bg: #ffffff;
-  --border: rgba(15, 23, 42, 0.08); /* Softer borders */
+  --border: rgba(15, 23, 42, 0.08); /* Professional soft borders */
   --divide: rgba(15, 23, 42, 0.05);
-  --muted: #64748b; /* slate-500 for muted text */
-  --success: #10b981; /* emerald-500 for success states */
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --chart-primary: #10b981; /* Primary chart color */
-  --chart-secondary: #6ee7b7; /* Light green for secondary data */
-  --progress-bg: #e5e7eb; /* Light gray for progress backgrounds */
-  --teal-accent: #14b8a6; /* teal-500 for the teal elements in dashboard */
+  --muted: #64748b; /* Slate-500 for muted text */
+  --success: #059669; /* Emerald-600 for success */
+  --success-bg: rgba(5, 150, 105, 0.1);
+  --chart-primary: #3b82f6; /* Professional blue */
+  --chart-secondary: #8b5cf6; /* Purple-500 for secondary data */
+  --progress-bg: #e5e7eb; /* Gray-200 for progress */
+  --teal-accent: #0891b2; /* Sky-600 for professional accents */
 }
 
 @theme inline {
@@ -32,44 +32,44 @@
 }
 
 .light {
-  --background: #f8fafb; /* Light gray background like FluxCRM */
-  --foreground: #1f2937; /* Darker text for better contrast */
-  --accent-from: #10b981; /* emerald-500 - matches the green cards */
-  --accent-to: #059669; /* emerald-600 - deeper green */
-  --accent-border: rgba(16, 185, 129, 0.2);
-  --accent-ring: rgba(16, 185, 129, 0.4);
-  --accent-shadow: rgba(16, 185, 129, 0.25);
-  --accent-solid: #059669; /* emerald-600 */
-  --surface: #ffffff; /* White cards */
-  --surface-2: #f1f5f9; /* Light slate background for subtle elements */
-  --surface-3: #e2e8f0; /* Even lighter for borders/dividers */
+  --background: #ffffff; /* Pure white professional background */
+  --foreground: #0f172a; /* Deep slate for professional text */
+  --accent-from: #3b82f6; /* Blue-500 - professional primary */
+  --accent-to: #1d4ed8; /* Blue-700 - deeper professional blue */
+  --accent-border: rgba(59, 130, 246, 0.2);
+  --accent-ring: rgba(59, 130, 246, 0.4);
+  --accent-shadow: rgba(59, 130, 246, 0.25);
+  --accent-solid: #2563eb; /* Blue-600 */
+  --surface: #f8fafc; /* Very light slate for cards */
+  --surface-2: #f1f5f9; /* Light slate background */
+  --surface-3: #e2e8f0; /* Slate-200 for borders */
   --input-bg: #ffffff;
-  --border: rgba(15, 23, 42, 0.08); /* Softer borders */
+  --border: rgba(15, 23, 42, 0.08); /* Professional soft borders */
   --divide: rgba(15, 23, 42, 0.05);
-  --muted: #64748b; /* slate-500 for muted text */
-  --success: #10b981; /* emerald-500 for success states */
-  --success-bg: rgba(16, 185, 129, 0.1);
-  --chart-primary: #10b981; /* Primary chart color */
-  --chart-secondary: #6ee7b7; /* Light green for secondary data */
-  --progress-bg: #e5e7eb; /* Light gray for progress backgrounds */
-  --teal-accent: #14b8a6; /* teal-500 for the teal elements in dashboard */
+  --muted: #64748b; /* Slate-500 for muted text */
+  --success: #059669; /* Emerald-600 for success */
+  --success-bg: rgba(5, 150, 105, 0.1);
+  --chart-primary: #3b82f6; /* Professional blue */
+  --chart-secondary: #8b5cf6; /* Purple-500 for secondary data */
+  --progress-bg: #e5e7eb; /* Gray-200 for progress */
+  --teal-accent: #0891b2; /* Sky-600 for professional accents */
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --accent-from: #ec4899; /* fuchsia-500 */
-  --accent-to: #a855f7; /* purple-500 */
-  --accent-border: rgba(236, 72, 153, 0.2);
-  --accent-ring: rgba(236, 72, 153, 0.4);
-  --accent-shadow: rgba(236, 72, 153, 0.35);
-  --accent-solid: #ec4899; /* fuchsia-500 */
-  --surface: #0f0f1a;
-  --surface-2: #151526;
-  --input-bg: #151526;
-  --border: rgba(255,255,255,0.12);
-  --divide: rgba(255,255,255,0.1);
-  --muted: #94a3b8; /* slate-400 */
+  --background: #010103; /* Deep navy professional dark */
+  --foreground: #ffffff; /* Light slate text */
+  --accent-from: #b2e154; /* Blue-400 - bright but professional */
+  --accent-to: #3ee681; /* Blue-500 */
+  --accent-border: rgba(96, 250, 142, 0.2);
+  --accent-ring: rgba(38, 195, 86, 0.4);
+  --accent-shadow: rgba(90, 239, 130, 0.35);
+  --accent-solid: #1b5f51; /* Blue-400 */
+  --surface: #1e3b29; /* Slate-800 for professional dark cards */
+  --surface-2: #334155; /* Slate-700 */
+  --input-bg: #1e293b;
+  --border: rgba(248, 250, 252, 0.326); /* Subtle light borders */
+  --divide: rgba(248, 250, 252, 0.1);
+  --muted: #94a3b8; /* Slate-400 for muted text */
 }
 
 body {
@@ -111,7 +111,7 @@ body {
   
   .fluxcrm-button-primary {
     background: linear-gradient(135deg, var(--accent-from), var(--accent-to));
-    color: white;
+    color: rgb(240, 240, 240);
     border-radius: 8px;
     padding: 10px 20px;
     font-weight: 600;
@@ -171,10 +171,10 @@ body {
 /* Updated button-64 to match FluxCRM aesthetic */
 .button-64 {
   align-items: center;
-  background-image: linear-gradient(135deg, #10b981, #14b8a6, #06b6d4);
+  background-image: linear-gradient(135deg, var(--accent-from), var(--accent-to), var(--teal-accent));
   border: 0;
   border-radius: 12px;
-  box-shadow: rgba(16, 185, 129, 0.25) 0 8px 24px -4px;
+  box-shadow: var(--accent-shadow) 0 8px 24px -4px;
   box-sizing: border-box;
   color: #FFFFFF;
   display: flex;
@@ -199,7 +199,7 @@ body {
 .button-64:hover {
   outline: 0;
   transform: translateY(-1px);
-  box-shadow: rgba(16, 185, 129, 0.35) 0 12px 32px -4px;
+  box-shadow: var(--accent-shadow) 0 12px 32px -4px;
 }
 
 .button-64 span {

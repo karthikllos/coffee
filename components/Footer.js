@@ -1,10 +1,13 @@
 import React from "react";
+
 const Footer = () => {
-    return (
-        <div className="text-[color:var(--foreground)] text-center py-6 bg-[var(--background)] border-t border-[color:var(--accent-border)]">
-            <p className="text-sm text-[color:var(--muted)]">© 2025 Get Me A Coffee</p>
-        </div>
-    )
-}
+  return (
+    <footer className="text-[color:var(--foreground)] text-center py-4 bg-[var(--background)] border-t border-[color:var(--accent-border)] fixed bottom-0 left-0 w-full z-50">
+      <p className="text-sm text-[color:var(--muted)]">
+        © 2025 Get Me A Coffee
+      </p>
+    </footer>
+  );
+};
 
 export default Footer;
