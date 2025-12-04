@@ -1,15 +1,13 @@
 import { Inter, JetBrains_Mono } from "next/font/google";
-import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import SessionProvider from "../components/Sessionwrapper";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import Sessionwrapper from "../components/Sessionwrapper";
-
-import { Toaster } from "react-hot-toast";
-import { ThemeProvider } from "next-themes";
+import "./globals.css";
 
 const inter = Inter({
   variable: "--font-inter",
-  subsets: ["latin"],  
+  subsets: ["latin"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -19,42 +17,37 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata = {
   title: "StudySync Daily: Academic Planner",
-  description: "AI-powered academic planner for students - schedule tasks, track progress, and optimize study time",
+  description:
+    "AI-powered academic planner for students - schedule tasks, track progress, and optimize study time",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}>
-        <Sessionwrapper>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-           <Navbar /> 
-            <div className="min-h-[87vh] relative w-full h-full bg-[var(--background)]">
-              <main className="relative z-10">{children}</main>
-            </div>
-            <Footer />
-            <Toaster
-              position="top-right"
-              reverseOrder={false}
-              toastOptions={{
-                style: {
-                  background: "#333",
-                  color: "#fff",
-                  fontSize: "14px",
-                },
-                success: {
-                  duration: 3000,
-                  style: { background: "green", color: "white" },
-                },
-                error: {
-                  duration: 5000,
-                  style: { background: "red", color: "white" },
-                },
-              }}
-            />
-          </ThemeProvider>
-        </Sessionwrapper>
-        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <html lang="en">
+      <head>
+        {/* Razorpay Payment Gateway */}
+        <script
+          src="https://checkout.razorpay.com/v1/checkout.js"
+          async
+          defer
+        />
+      </head>
+      <body className={`${inter.variable} ${jetbrainsMono.variable}`}>
+        <SessionProvider>
+          <Navbar />
+          {children}
+          <Footer />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: "#363636",
+                color: "#fff",
+              },
+            }}
+          />
+        </SessionProvider>
       </body>
     </html>
   );
