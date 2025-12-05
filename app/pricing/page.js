@@ -13,7 +13,7 @@ export default function PricingPage() {
     const plans = [
         { 
             name: "Free", 
-            price: "$0", 
+            price: "0", 
             planId: 'PLAN_FREE',
             amount: 0,
             features: [
@@ -27,7 +27,7 @@ export default function PricingPage() {
         },
         { 
             name: "Pro", 
-            price: "$9", 
+            price: "99", 
             planId: 'PLAN_PRO_MONTHLY',
             amount: 900, // Amount in smallest currency unit (cents)
             features: [
@@ -42,7 +42,7 @@ export default function PricingPage() {
         },
         { 
             name: "Pro Max", 
-            price: "$19", 
+            price: "199", 
             planId: 'PLAN_PRO_MAX_MONTHLY',
             amount: 1900, // Amount in smallest currency unit (cents)
             features: [

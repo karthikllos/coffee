@@ -32,7 +32,7 @@
 }
 
 .light {
-  --background: #ffffff; /* Pure white professional background */
+  --background: #663232; /* Pure white professional background */
   --foreground: #0f172a; /* Deep slate for professional text */
   --accent-from: #3b82f6; /* Blue-500 - professional primary */
   --accent-to: #1d4ed8; /* Blue-700 - deeper professional blue */
@@ -87,9 +87,7 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+
 
 @layer utilities {
   .animate-float {

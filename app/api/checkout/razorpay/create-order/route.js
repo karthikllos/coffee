@@ -42,7 +42,7 @@ export async function POST(request) {
       oid: `razorpay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       message: message || '',
       amount: amountInPaise,
-      currency: process.env.CURRENCY || 'inr',
+      currency:  'inr',
       paymentGateway: 'razorpay',
       status: 'pending'
     });
@@ -76,7 +76,7 @@ export async function POST(request) {
       key: process.env.RAZORPAY_KEY_ID,
       name: `StudySync Daily - ${recipient.name || recipient.username}`,
       description: message ? `Message: \"${message}\"` : 'StudySync Daily Purchase',
-      image: recipient.profilepic || 'https://via.placeholder.com/300x300?text=StudySync',
+      // image: recipient.profilepic || 'https://via.placeholder.com/300x300?text=StudySync',
       prefill: {
         name: name
       },
