@@ -1,16 +1,21 @@
+// app/api/quizzes/route.js
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../../lib/auth";
 import { enforceCredits } from "../../../../lib/creditEnforcement";
-import { generateNotes } from "../../../../lib/aiService";
+import { generateQuiz } from "../../../../lib/aiService";
 import connectDb from "../../../../lib/connectDb";
 import User from "../../../../models/user";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Generate AI Quiz
+ * Cost: 2 credits (Pro: from monthly 50, Pro Max/Premium: free, Free/Starter: from purchased credits)
+ */
 export async function POST(request) {
   try {
-    console.log("[AI Notes] Starting notes generation");
+    console.log("[AI Quiz] Starting quiz generation");
 
     const session = await getServerSession(authOptions);
     if (!session?.user) {
@@ -18,11 +23,11 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { content } = body || {};
+    const { topic, difficulty = "medium", questionCount = 5 } = body || {};
 
-    if (!content || !content.trim()) {
+    if (!topic || !topic.trim()) {
       return NextResponse.json(
-        { error: "Content is required" },
+        { error: "Topic is required" },
         { status: 400 }
       );
     }
@@ -38,10 +43,10 @@ export async function POST(request) {
     }
 
     // ✅ ATOMIC credit enforcement
-    const creditCheck = await enforceCredits(user._id.toString(), "AI_NOTES");
+    const creditCheck = await enforceCredits(user._id.toString(), "AI_QUIZ");
 
     if (!creditCheck.success) {
-      console.warn("[AI Notes] ❌ Credit check failed:", {
+      console.warn("[AI Quiz] ❌ Credit check failed:", {
         userId: user._id,
         reason: creditCheck.message,
       });
@@ -50,19 +55,19 @@ export async function POST(request) {
         {
           error: creditCheck.message,
           creditsRemaining: creditCheck.creditsRemaining,
-          requiredCredits: 1,
+          requiredCredits: 2,
         },
         { status: creditCheck.code }
       );
     }
 
-    // ✅ Generate notes using Gemini API
-    const result = await generateNotes(content);
+    // ✅ Generate quiz using Gemini API
+    const result = await generateQuiz(topic, difficulty, parseInt(questionCount));
 
-    console.log("[AI Notes] ✅ Notes generated successfully:", {
+    console.log("[AI Quiz] ✅ Quiz generated successfully:", {
       userId: user._id,
-      contentLength: content.length,
-      notesLength: result.notes.length,
+      topic,
+      questionsCount: result.questions.length,
       creditsUsed: creditCheck.cost,
       creditsRemaining: creditCheck.creditsRemaining,
     });
@@ -70,7 +75,11 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: true,
-        notes: result.notes,
+        quiz: {
+          topic,
+          difficulty,
+          questions: result.questions,
+        },
         credits: {
           used: creditCheck.cost,
           remaining: creditCheck.creditsRemaining,
@@ -80,10 +89,10 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[AI Notes] ❌ Error:", error.message);
+    console.error("[AI Quiz] ❌ Error:", error.message);
 
     return NextResponse.json(
-      { error: "Failed to generate notes", details: error.message },
+      { error: "Failed to generate quiz", details: error.message },
       { status: 500 }
     );
   }

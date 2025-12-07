@@ -16,63 +16,17 @@ const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [aiDropdownOpen, setAiDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [userProfile, setUserProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch user academic profile with better error handling
-  const fetchUserProfile = async () => {
-    if (!session?.user) {
-      setUserProfile(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await fetch(`/api/user/academic-profile?t=${Date.now()}`);
-      
-      if (res.ok) {
-        const data = await res.json();
-        console.log("Navbar - fetched academic profile:", data);
-        setUserProfile(data);
-      } else {
-        console.error("Failed to fetch profile:", res.status);
-        setUserProfile(null);
-      }
-    } catch (err) {
-      console.error("Navbar - failed to fetch academic profile:", err);
-      setUserProfile(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch on mount and when session changes
-  useEffect(() => {
-    fetchUserProfile();
-  }, [session]);
-
-  // Auto-refetch every 10 seconds to catch payment updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (session?.user) {
-        fetchUserProfile();
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, [session]);
-
   const navItems = [
     { label: "Features", href: "/features" },
     { label: "Pricing", href: "/pricing" },
     { label: "FAQ", href: "/faq" },
-  ].filter(Boolean);
+  ];
 
   const authenticatedNavItems = [
     { label: "Dashboard", href: "/dashboard" },
@@ -89,15 +43,11 @@ const Navbar = () => {
     setTheme(newTheme);
   };
 
-  // Check if user is Pro - be more lenient
-  const isPro = userProfile && (
-    userProfile.subscriptionPlan === "Pro" || 
-    userProfile.subscriptionPlan === "Pro Max" || 
-    userProfile.subscriptionPlan === "Premium"
-  );
-
-  // Check if user has enough credits
-  const hasCredits = userProfile && userProfile.aiCredits > 0;
+  // ✅ Check subscription from session
+  const isPro = session?.user?.subscriptionPlan && 
+    (session.user.subscriptionPlan === "Pro" || 
+     session.user.subscriptionPlan === "Premium" ||
+     session.user.subscriptionPlan === "Starter");
 
   return (
     <nav className="w-full text-[color:var(--foreground)] px-6 py-4 shadow-md bg-[var(--background)] border-b border-[color:var(--accent-border)]">
@@ -131,8 +81,8 @@ const Navbar = () => {
             ))}
           </ul>
 
-          {/* Pro Features Dropdown - Show for Pro users OR users with credits */}
-          {session && (isPro || hasCredits) && !loading && (
+          {/* ✅ AI Tools Dropdown - Show for all paid plans */}
+          {session && isPro && (
             <div className="relative">
               <button
                 onClick={() => setAiDropdownOpen(!aiDropdownOpen)}
@@ -159,7 +109,7 @@ const Navbar = () => {
                       <Link
                         key={label}
                         href={href}
-                        className={`flex items-start gap-3 px-4 py-3 rounded-lg transition duration-200 group ${
+                        className={`flex items-start gap-3 px-4 py-3 rounded-lg transition duration-200 ${
                           pathname === href
                             ? "bg-[var(--button-hover)] text-[color:var(--accent-solid)]"
                             : "hover:bg-[var(--button-hover)] text-[color:var(--foreground)]"
@@ -181,7 +131,7 @@ const Navbar = () => {
             </div>
           )}
 
-          {/* Authenticated user CTA / Info with Dropdown */}
+          {/* Authenticated user dropdown */}
           {session ? (
             <div className="flex items-center gap-3 relative">
               <div className="flex items-center gap-2">
@@ -213,7 +163,7 @@ const Navbar = () => {
                   <div className="px-4 py-3 border-b border-[var(--card-border)]">
                     <p className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide">Plan</p>
                     <p className="text-sm font-semibold text-[color:var(--accent-solid)]">
-                      {loading ? "Loading..." : (userProfile?.subscriptionPlan || "Free")}
+                      {session.user?.subscriptionPlan || "Free"}
                     </p>
                   </div>
 
@@ -226,17 +176,6 @@ const Navbar = () => {
                     <CreditCard className="h-4 w-4" />
                     <span>Billing & Invoices</span>
                   </Link>
-
-                  {/* Refresh Profile Button */}
-                  <button
-                    onClick={() => {
-                      fetchUserProfile();
-                      setDropdownOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-[color:var(--accent-solid)] hover:bg-[var(--button-hover)] transition duration-200 border-b border-[var(--card-border)]"
-                  >
-                    🔄 Refresh Profile
-                  </button>
 
                   {/* Sign Out */}
                   <button
@@ -265,7 +204,7 @@ const Navbar = () => {
 
         {/* Right Side Actions */}
         <div className="flex items-center gap-2 md:gap-4">
-          {/* Credit Badge - only visible for signed-in users */}
+          {/* Credit Badge */}
           {session && mounted && <CreditBadge />}
 
           {/* Theme Toggle */}
@@ -314,39 +253,37 @@ const Navbar = () => {
             ))}
           </ul>
 
-          {/* Pro Features Mobile */}
-          {session && (isPro || hasCredits) && !loading && (
-            <>
-              <div className="border-t border-[var(--card-border)] pt-4">
-                <p className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide px-3 mb-3 font-semibold">AI Tools</p>
-                <ul className="flex flex-col gap-2">
-                  {proFeatures.map(({ label, href, icon: Icon, description }) => (
-                    <li key={label}>
-                      <Link
-                        href={href}
-                        className={`flex items-start gap-3 py-3 px-3 rounded-lg transition duration-200 ${
-                          pathname === href
-                            ? "text-[color:var(--accent-solid)] bg-[var(--card-bg)]"
-                            : "text-[color:var(--text-secondary)] hover:bg-[var(--card-bg)]"
-                        }`}
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-sm">{label}</p>
-                          <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
-                            {description}
-                          </p>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
+          {/* AI Tools Mobile */}
+          {session && isPro && (
+            <div className="border-t border-[var(--card-border)] pt-4">
+              <p className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide px-3 mb-3 font-semibold">AI Tools</p>
+              <ul className="flex flex-col gap-2">
+                {proFeatures.map(({ label, href, icon: Icon, description }) => (
+                  <li key={label}>
+                    <Link
+                      href={href}
+                      className={`flex items-start gap-3 py-3 px-3 rounded-lg transition duration-200 ${
+                        pathname === href
+                          ? "text-[color:var(--accent-solid)] bg-[var(--card-bg)]"
+                          : "text-[color:var(--text-secondary)] hover:bg-[var(--card-bg)]"
+                      }`}
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <Icon className="h-5 w-5 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium text-sm">{label}</p>
+                        <p className="text-xs text-[color:var(--text-tertiary)] mt-1">
+                          {description}
+                        </p>
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
 
-          {/* Mobile Auth actions */}
+          {/* Mobile Auth */}
           <div className="flex flex-col gap-3 px-2 border-t border-[var(--card-border)] pt-4">
             {session ? (
               <>
@@ -359,18 +296,9 @@ const Navbar = () => {
                 <div className="px-3 py-2">
                   <p className="text-xs text-[color:var(--text-tertiary)] uppercase">Plan</p>
                   <p className="text-sm font-semibold text-[color:var(--accent-solid)]">
-                    {loading ? "Loading..." : (userProfile?.subscriptionPlan || "Free")}
+                    {session.user?.subscriptionPlan || "Free"}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    fetchUserProfile();
-                    setMenuOpen(false);
-                  }}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-[var(--card-bg)] hover:bg-[var(--button-hover)] transition duration-200 text-[color:var(--accent-solid)]"
-                >
-                  🔄 Refresh Profile
-                </button>
                 <Link
                   href="/account/billing"
                   className="flex items-center gap-2 px-4 py-3 rounded-lg bg-[var(--card-bg)] hover:bg-[var(--button-hover)] transition duration-200"
@@ -384,7 +312,7 @@ const Navbar = () => {
                     signOut({ callbackUrl: "/auth" });
                     setMenuOpen(false);
                   }}
-                  className="px-4 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-medium transition"
+                  className="px-4 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium"
                 >
                   Sign out
                 </button>
@@ -392,7 +320,7 @@ const Navbar = () => {
             ) : (
               <Link
                 href="/auth"
-                className="px-4 py-3 rounded-lg bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] text-white font-medium text-center hover:shadow-lg transition-all duration-200"
+                className="px-4 py-3 rounded-lg bg-gradient-to-r from-[var(--accent-from)] to-[var(--accent-to)] text-white font-medium text-center"
                 onClick={() => setMenuOpen(false)}
               >
                 Get Started

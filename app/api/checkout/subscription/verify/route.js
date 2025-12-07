@@ -1,19 +1,19 @@
+// app/api/checkout/subscription/verify/route.js
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../../../lib/auth";
-import connectDb from "../../../../../lib/connectDb";
-import User from "../../../../../models/user";
+import { authOptions } from "../../../../lib/auth";
+import connectDb from "../../../../lib/connectDb";
+import User from "../../../../models/user";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
   try {
-    console.log("[Razorpay] Starting payment verification");
+    console.log("[Subscription] Verifying payment");
 
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      console.warn("[Razorpay] Unauthorized verification attempt");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -23,136 +23,129 @@ export async function POST(request) {
       razorpay_order_id,
       razorpay_signature,
       planId,
-      planName,
     } = body || {};
 
-    // Validate required fields
     if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
-      console.warn("[Razorpay] Missing payment details", {
-        paymentId: !!razorpay_payment_id,
-        orderId: !!razorpay_order_id,
-        signature: !!razorpay_signature,
-      });
       return NextResponse.json(
         { error: "Missing payment details" },
         { status: 400 }
       );
     }
 
-    // Verify Razorpay signature
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keySecret) {
-      console.error("[Razorpay] RAZORPAY_KEY_SECRET not configured");
-      return NextResponse.json(
-        { error: "Server configuration error" },
-        { status: 500 }
-      );
-    }
-
     const hmac = crypto.createHmac("sha256", keySecret);
     hmac.update(`${razorpay_order_id}|${razorpay_payment_id}`);
     const generatedSignature = hmac.digest("hex");
 
-    console.log("[Razorpay] Signature verification", {
-      orderId: razorpay_order_id,
-      expected: generatedSignature.substring(0, 8) + "...",
-      received: razorpay_signature.substring(0, 8) + "...",
-    });
-
     if (generatedSignature !== razorpay_signature) {
-      console.warn("[Razorpay] Signature mismatch - payment rejected", {
-        orderId: razorpay_order_id,
-      });
+      console.warn("[Subscription] Invalid signature");
       return NextResponse.json(
-        { error: "Invalid payment signature - payment rejected" },
+        { error: "Invalid signature" },
         { status: 400 }
       );
     }
 
-    console.log("[Razorpay] Signature verified successfully");
-
-    // Connect to database
     await connectDb();
 
-    // Find user by email
-    const user = await User.findOne({
-      email: session.user.email.toLowerCase().trim(),
+    // ✅ CHECK IF PAYMENT ALREADY PROCESSED (prevent duplicates)
+    const existingPayment = await User.findOne({
+      email: session.user.email,
+      "paymentHistory.razorpayPaymentId": razorpay_payment_id,
     });
 
+    if (existingPayment) {
+      console.warn(
+        "[Subscription] Payment already processed:",
+        razorpay_payment_id
+      );
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Payment already processed",
+          subscription: {
+            planName: existingPayment.subscriptionPlan,
+            credits: existingPayment.credits,
+            status: existingPayment.subscriptionStatus,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    const user = await User.findOne({ email: session.user.email });
     if (!user) {
-      console.error("[Razorpay] User not found:", session.user.email);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Determine plan details
-    const planDetails = {
-      free: { name: "Free", duration: 0, price: 0 },
-      starter: { name: "Starter", duration: 1, price: 4999 },
-      pro: { name: "Pro", duration: 1, price: 9999 },
-      premium: { name: "Premium", duration: 1, price: 19999 },
+    const planMapping = {
+      starter: "Starter",
+      pro: "Pro",
+      premium: "Premium",
     };
 
-    const selectedPlan = planDetails[planId] || planDetails.pro;
-    const renewalDate = new Date();
-    renewalDate.setMonth(renewalDate.getMonth() + selectedPlan.duration);
+    const amounts = {
+      Starter: 4999,
+      Pro: 9999,
+      Premium: 19999,
+    };
 
-    // Update user subscription
+    const credits = {
+      Starter: 50,
+      Pro: 200,
+      Premium: 1000,
+    };
+
+    const newPlan = planMapping[planId] || "Pro";
+    const now = new Date();
+    const renewalDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    // ✅ UPDATE SUBSCRIPTION AND ADD TO PAYMENT HISTORY (atomic operation)
     const updatedUser = await User.findByIdAndUpdate(
       user._id,
       {
-        subscriptionPlan: selectedPlan.name,
+        subscriptionPlan: newPlan,
         subscriptionStatus: "active",
-        isProSubscriber: selectedPlan.name !== "Free",
+        subscriptionStartDate: now,
         subscriptionRenewalDate: renewalDate,
+        credits: credits[newPlan],
+        creditsUsed: 0,
+        lastPaymentDate: now,
+        lastPaymentAmount: amounts[newPlan],
         subscriptionPaymentId: razorpay_payment_id,
-        subscriptionOrderId: razorpay_order_id,
-        lastPaymentDate: new Date(),
-        lastPaymentAmount: selectedPlan.price,
-        aiCredits: selectedPlan.name === "Pro" ? 50 : (selectedPlan.name === "Premium" ? 999999 : 5),
+        $push: {
+          paymentHistory: {
+            razorpayPaymentId: razorpay_payment_id,
+            plan: newPlan,
+            amount: amounts[newPlan],
+            status: "completed",
+            createdAt: now,
+          },
+        },
       },
       { new: true }
     );
 
-    console.log("[Razorpay] Payment successful - subscription updated", {
+    console.log("[Subscription] ✅ Payment processed successfully:", {
       userId: user._id,
-      plan: selectedPlan.name,
+      plan: newPlan,
       paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
-      amount: selectedPlan.price,
-      renewalDate: renewalDate,
+      credits: credits[newPlan],
     });
 
-    // Return success response
     return NextResponse.json(
       {
         success: true,
-        message: "Payment verified and subscription updated successfully",
         subscription: {
           planName: updatedUser.subscriptionPlan,
+          credits: updatedUser.credits,
           status: updatedUser.subscriptionStatus,
-          isProSubscriber: updatedUser.isProSubscriber,
           renewalDate: updatedUser.subscriptionRenewalDate,
-          paymentId: razorpay_payment_id,
-          orderId: razorpay_order_id,
-          aiCredits: updatedUser.aiCredits,
         },
       },
       { status: 200 }
     );
   } catch (error) {
-    console.error("[Razorpay] Verification error", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: "Payment verification failed",
-        details: error.message,
-      },
-      { status: 500 }
-    );
+    console.error("[Subscription] Error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

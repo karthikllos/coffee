@@ -29,7 +29,7 @@ export default function PricingPage() {
             name: "Pro", 
             price: "99", 
             planId: 'PLAN_PRO_MONTHLY',
-            amount: 900, // Amount in smallest currency unit (cents)
+            amount: 9900,
             features: [
                 { icon: <Star className="w-5 h-5" />, desc: "Everything in Free" },
                 { icon: <Sparkles className="w-5 h-5" />, desc: "AI Predictive Scheduling" },
@@ -44,7 +44,7 @@ export default function PricingPage() {
             name: "Pro Max", 
             price: "199", 
             planId: 'PLAN_PRO_MAX_MONTHLY',
-            amount: 1900, // Amount in smallest currency unit (cents)
+            amount: 19900,
             features: [
                 { icon: <Star className="w-5 h-5" />, desc: "Everything in Pro" },
                 { icon: <Users className="w-5 h-5" />, desc: "Group Project Collaboration" },
@@ -58,14 +58,12 @@ export default function PricingPage() {
     ];
 
     const handleSubscription = async (plan) => {
-        // Check authentication
         if (status !== 'authenticated') {
             toast.error('Please login to subscribe');
             router.push('/auth?mode=login');
             return;
         }
 
-        // Free plan - just redirect to dashboard
         if (plan.name === 'Free') {
             router.push('/dashboard');
             return;
@@ -75,7 +73,6 @@ export default function PricingPage() {
         const loadingToast = toast.loading(`Preparing ${plan.name} checkout...`);
 
         try {
-            // 1. Create order on server
             const response = await fetch('/api/checkout/subscription/create', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -92,27 +89,23 @@ export default function PricingPage() {
             }
 
             const orderData = await response.json();
-            console.log('Order created:', orderData);
 
-            // 2. Check if Razorpay is loaded
             if (typeof window.Razorpay === 'undefined') {
                 throw new Error('Payment gateway not loaded. Please refresh and try again.');
             }
 
             toast.dismiss(loadingToast);
 
-            // 3. Configure Razorpay options
             const options = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || orderData.key, 
                 amount: orderData.amount, 
-                currency: orderData.currency || 'USD',
+                currency: orderData.currency || 'INR',
                 name: 'StudySync Daily',
                 description: `${plan.name} Plan Subscription`,
                 order_id: orderData.orderId,
                 handler: async function (response) {
                     const verifyToast = toast.loading('Verifying payment...');
                     try {
-                        // 4. Verify payment on server
                         const verifyRes = await fetch('/api/checkout/subscription/verify', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -130,8 +123,10 @@ export default function PricingPage() {
                         
                         if (verificationData.success) {
                             toast.success(`🎉 Welcome to ${plan.name}!`);
+                            
+                            // 🔥 FIX: Force reload to refresh navbar and session
                             setTimeout(() => {
-                                router.push('/dashboard');
+                                window.location.href = '/dashboard';
                             }, 1500);
                         } else {
                             toast.error('Payment verification failed. Contact support.');
@@ -155,7 +150,7 @@ export default function PricingPage() {
                     email: session?.user?.email || '',
                 },
                 theme: {
-                    color: '#10b981', // Emerald-500
+                    color: '#10b981',
                 },
                 notes: {
                     planId: plan.planId,
@@ -163,7 +158,6 @@ export default function PricingPage() {
                 }
             };
 
-            // 5. Open Razorpay checkout
             const razorpayInstance = new window.Razorpay(options);
             razorpayInstance.open();
 
@@ -177,14 +171,12 @@ export default function PricingPage() {
 
     return (
         <main className="min-h-screen bg-gradient-to-br from-slate-50 via-emerald-50 to-teal-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4 py-16 relative overflow-hidden">
-            {/* Animated background elements */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-0 -left-4 w-72 h-72 bg-emerald-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
                 <div className="absolute top-0 -right-4 w-72 h-72 bg-teal-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
                 <div className="absolute -bottom-8 left-20 w-72 h-72 bg-cyan-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
             </div>
 
-            {/* Header */}
             <div className="relative z-10 max-w-7xl mx-auto text-center mb-16">
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-sm font-medium mb-6">
                     <Sparkles className="w-4 h-4" />
@@ -198,7 +190,6 @@ export default function PricingPage() {
                 </p>
             </div>
 
-            {/* Pricing Grid */}
             <div className="relative z-10 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
                 {plans.map((plan, index) => (
                     <div 
@@ -209,7 +200,6 @@ export default function PricingPage() {
                                 : 'bg-white/80 dark:bg-gray-800/80 text-gray-900 dark:text-white shadow-xl border border-gray-200 dark:border-gray-700'
                         }`}
                     >
-                        {/* Recommended Badge */}
                         {plan.isHighlighted && (
                             <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-6 py-1 rounded-full text-sm font-bold shadow-lg">
                                 ⭐ Most Popular
@@ -217,16 +207,15 @@ export default function PricingPage() {
                         )}
 
                         <div className="p-8">
-                            {/* Plan Header */}
                             <div className="mb-8">
                                 <h3 className={`text-2xl font-bold mb-2 ${plan.isHighlighted ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                                     {plan.name}
                                 </h3>
                                 <div className="flex items-baseline gap-2">
                                     <span className={`text-5xl font-black ${plan.isHighlighted ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                                        {plan.price}
+                                        ₹{plan.price}
                                     </span>
-                                    {plan.price !== "$0" && (
+                                    {plan.price !== "0" && (
                                         <span className={`text-lg ${plan.isHighlighted ? 'text-emerald-100' : 'text-gray-500 dark:text-gray-400'}`}>
                                             /month
                                         </span>
@@ -234,7 +223,6 @@ export default function PricingPage() {
                                 </div>
                             </div>
 
-                            {/* Features List */}
                             <ul className="space-y-4 mb-8">
                                 {plan.features.map((feature, featureIndex) => (
                                     <li key={featureIndex} className="flex items-start gap-3">
@@ -248,7 +236,6 @@ export default function PricingPage() {
                                 ))}
                             </ul>
 
-                            {/* CTA Button */}
                             <button
                                 onClick={() => handleSubscription(plan)}
                                 disabled={loadingPlanId === plan.planId || (loadingPlanId !== null && loadingPlanId !== plan.planId)}
@@ -272,7 +259,6 @@ export default function PricingPage() {
                 ))}
             </div>
 
-            {/* Trust Badges */}
             <div className="relative z-10 max-w-4xl mx-auto mt-20 text-center">
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Trusted by thousands of students worldwide</p>
                 <div className="flex flex-wrap justify-center gap-8 items-center opacity-60">

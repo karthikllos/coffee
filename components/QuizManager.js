@@ -1,353 +1,326 @@
-// components/QuizManager.js
+// components/AIQuizPage.js
 "use client";
-import React, { useState } from "react";
-import { Award, Clock, Trash2, Play, Calendar, TrendingUp } from "lucide-react";
 
-export default function QuizManager({ quizzes = [], onRefresh = () => {} }) {
-  const [activeQuiz, setActiveQuiz] = useState(null);
-  const [userAnswers, setUserAnswers] = useState([]);
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Loader2, Brain, AlertCircle } from "lucide-react";
+import Link from "next/link";
+
+export default function AIQuizPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState("medium");
+  const [questionCount, setQuestionCount] = useState(5);
+  const [questions, setQuestions] = useState([]);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+  const [insufficientCredits, setInsufficientCredits] = useState(false);
+  const [userAnswers, setUserAnswers] = useState({});
   const [showResults, setShowResults] = useState(false);
-  const [score, setScore] = useState(0);
-  const [startTime, setStartTime] = useState(null);
 
-  const handleStartQuiz = (quiz) => {
-    setActiveQuiz(quiz);
-    setUserAnswers(new Array(quiz.questions.length).fill(""));
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/auth");
+    } else if (status === "authenticated") {
+      setLoading(false);
+    }
+  }, [status, router]);
+
+  const generateQuiz = async () => {
+    if (!topic.trim()) {
+      setError("Please enter a topic");
+      return;
+    }
+
+    setGenerating(true);
+    setError("");
+    setInsufficientCredits(false);
     setShowResults(false);
-    setScore(0);
-    setStartTime(Date.now());
-  };
+    setUserAnswers({});
 
-  const handleAnswerChange = (index, value) => {
-    const newAnswers = [...userAnswers];
-    newAnswers[index] = value;
-    setUserAnswers(newAnswers);
-  };
-
-  const handleSubmitQuiz = async () => {
-    if (!activeQuiz) return;
-
-    // Calculate score
-    let correctCount = 0;
-    activeQuiz.questions.forEach((q, idx) => {
-      const userAnswer = userAnswers[idx]?.trim().toLowerCase();
-      const correctAnswer = q.answer.trim().toLowerCase();
-      
-      if (q.type === "true_false") {
-        if (userAnswer === correctAnswer) correctCount++;
-      } else if (q.type === "multiple_choice") {
-        if (userAnswer === correctAnswer) correctCount++;
-      } else {
-        // Short answer - check if answer contains key terms
-        const keyTerms = correctAnswer.split(" ").filter(t => t.length > 3);
-        const hasKeyTerms = keyTerms.some(term => userAnswer.includes(term));
-        if (hasKeyTerms) correctCount++;
-      }
-    });
-
-    const finalScore = Math.round((correctCount / activeQuiz.questions.length) * 100);
-    const timeTaken = Math.floor((Date.now() - startTime) / 1000);
-
-    setScore(finalScore);
-    setShowResults(true);
-
-    // Submit to backend
     try {
-      const res = await fetch("/api/quizzes", {
-        method: "PUT",
+      const response = await fetch("/api/ai/quiz", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quizId: activeQuiz._id,
-          answers: userAnswers,
-          score: finalScore,
-          timeTaken,
-        }),
+        body: JSON.stringify({ topic, difficulty, questionCount: parseInt(questionCount) }),
       });
 
-      if (res.ok) {
-        onRefresh();
+      const data = await response.json();
+
+      // ✅ Handle 402 Insufficient Credits
+      if (response.status === 402) {
+        console.warn("❌ Insufficient credits:", data);
+        setInsufficientCredits(true);
+        setError(data.message || "Insufficient credits. Please upgrade your plan.");
+        return;
       }
-    } catch (error) {
-      console.error("Error submitting quiz:", error);
+
+      if (!response.ok) {
+        setError(data.error || "Failed to generate quiz");
+        return;
+      }
+
+      setQuestions(data.quiz.questions || []);
+    } catch (err) {
+      setError("Error generating quiz: " + err.message);
+    } finally {
+      setGenerating(false);
     }
   };
 
-  const handleDeleteQuiz = async (quizId) => {
-    if (!confirm("Are you sure you want to delete this quiz?")) return;
+  const handleAnswerChange = (questionId, answer) => {
+    setUserAnswers((prev) => ({ ...prev, [questionId]: answer }));
+  };
 
-    try {
-      const res = await fetch("/api/quizzes", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quizId }),
-      });
-
-      if (res.ok) {
-        onRefresh();
+  const calculateScore = () => {
+    let correct = 0;
+    questions.forEach((q) => {
+      if (userAnswers[q.id] === q.correctAnswer) {
+        correct++;
       }
-    } catch (error) {
-      console.error("Error deleting quiz:", error);
-    }
-  };
-
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
     });
+    return { correct, total: questions.length, percentage: Math.round((correct / questions.length) * 100) };
   };
 
-  if (activeQuiz && !showResults) {
-    // Quiz taking view
+  if (loading) {
     return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
-          <div className="mb-8">
-            <h2 className="text-3xl font-bold mb-2">{activeQuiz.title}</h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              {activeQuiz.questions.length} questions • {activeQuiz.academicTask?.subject || "General"}
-            </p>
-          </div>
-
-          <div className="space-y-8">
-            {activeQuiz.questions.map((question, idx) => (
-              <div key={idx} className="border-b border-gray-200 dark:border-gray-700 pb-6">
-                <div className="flex items-start gap-3 mb-4">
-                  <span className="flex-shrink-0 w-8 h-8 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full flex items-center justify-center font-bold">
-                    {idx + 1}
-                  </span>
-                  <p className="text-lg font-medium flex-1">{question.content}</p>
-                </div>
-
-                {question.type === "multiple_choice" && question.options ? (
-                  <div className="ml-11 space-y-2">
-                    {question.options.map((option, optIdx) => (
-                      <label
-                        key={optIdx}
-                        className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
-                      >
-                        <input
-                          type="radio"
-                          name={`question-${idx}`}
-                          value={option}
-                          checked={userAnswers[idx] === option}
-                          onChange={(e) => handleAnswerChange(idx, e.target.value)}
-                          className="w-4 h-4 text-emerald-600"
-                        />
-                        <span>{option}</span>
-                      </label>
-                    ))}
-                  </div>
-                ) : question.type === "true_false" ? (
-                  <div className="ml-11 flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`question-${idx}`}
-                        value="true"
-                        checked={userAnswers[idx] === "true"}
-                        onChange={(e) => handleAnswerChange(idx, e.target.value)}
-                        className="w-4 h-4 text-emerald-600"
-                      />
-                      <span>True</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name={`question-${idx}`}
-                        value="false"
-                        checked={userAnswers[idx] === "false"}
-                        onChange={(e) => handleAnswerChange(idx, e.target.value)}
-                        className="w-4 h-4 text-emerald-600"
-                      />
-                      <span>False</span>
-                    </label>
-                  </div>
-                ) : (
-                  <textarea
-                    value={userAnswers[idx] || ""}
-                    onChange={(e) => handleAnswerChange(idx, e.target.value)}
-                    placeholder="Type your answer..."
-                    className="ml-11 w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700"
-                    rows={3}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="flex gap-4 mt-8">
-            <button
-              onClick={handleSubmitQuiz}
-              disabled={userAnswers.some((a) => !a)}
-              className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              Submit Quiz
-            </button>
-            <button
-              onClick={() => {
-                setActiveQuiz(null);
-                setUserAnswers([]);
-              }}
-              className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-solid)]" />
       </div>
     );
   }
 
-  if (showResults && activeQuiz) {
-    // Results view
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full mb-4">
-              <Award className="h-12 w-12 text-emerald-600" />
-            </div>
-            <h2 className="text-3xl font-bold mb-2">Quiz Complete!</h2>
-            <p className="text-6xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-              {score}%
-            </p>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              {score >= 80 ? "Excellent work!" : score >= 60 ? "Good job!" : "Keep practicing!"}
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold">Review Your Answers</h3>
-            {activeQuiz.questions.map((question, idx) => {
-              const userAnswer = userAnswers[idx];
-              const correctAnswer = question.answer;
-              const isCorrect =
-                userAnswer?.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
-
-              return (
-                <div
-                  key={idx}
-                  className={`p-4 rounded-lg border-2 ${
-                    isCorrect
-                      ? "border-emerald-300 bg-emerald-50 dark:bg-emerald-900/20"
-                      : "border-red-300 bg-red-50 dark:bg-red-900/20"
-                  }`}
-                >
-                  <div className="flex items-start gap-3 mb-2">
-                    <span className="font-bold">{idx + 1}.</span>
-                    <p className="flex-1 font-medium">{question.content}</p>
-                  </div>
-                  <div className="ml-6 space-y-2 text-sm">
-                    <p>
-                      <span className="font-semibold">Your answer:</span>{" "}
-                      <span className={isCorrect ? "text-emerald-700" : "text-red-700"}>
-                        {userAnswer}
-                      </span>
-                    </p>
-                    {!isCorrect && (
-                      <p>
-                        <span className="font-semibold">Correct answer:</span>{" "}
-                        <span className="text-emerald-700">{correctAnswer}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-4 mt-8">
-            <button
-              onClick={() => {
-                setActiveQuiz(null);
-                setShowResults(false);
-              }}
-              className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition"
-            >
-              Back to Quizzes
-            </button>
-            <button
-              onClick={() => {
-                setShowResults(false);
-                setUserAnswers(new Array(activeQuiz.questions.length).fill(""));
-                setStartTime(Date.now());
-              }}
-              className="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-            >
-              Retry Quiz
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Quiz list view
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {quizzes.map((quiz) => {
-        const lastAttempt = quiz.attempts?.[quiz.attempts.length - 1];
-        const averageScore = quiz.attempts?.length
-          ? Math.round(
-              quiz.attempts.reduce((sum, a) => sum + a.score, 0) / quiz.attempts.length
-            )
-          : null;
-        const daysUntilReview = Math.ceil(
-          (new Date(quiz.nextReviewDate) - new Date()) / (1000 * 60 * 60 * 24)
-        );
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] py-12 px-4">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Brain className="h-8 w-8 text-[var(--accent-solid)]" />
+            <h1 className="text-4xl font-bold">AI Quiz Generator</h1>
+          </div>
+          <p className="text-[var(--text-secondary)]">
+            Create custom quizzes to test your knowledge (2 credits per quiz)
+          </p>
+        </div>
 
-        return (
-          <div
-            key={quiz._id}
-            className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-105 transition-transform"
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h3 className="font-bold text-lg mb-1">{quiz.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {quiz.academicTask?.subject || "General"} • {quiz.questions.length} questions
-                </p>
+        {/* ✅ 402 Insufficient Credits Modal */}
+        {insufficientCredits && (
+          <div className="mb-6 p-6 rounded-lg bg-red-500/10 border border-red-500/30">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="h-6 w-6 text-red-400 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-red-400 mb-2">
+                  Insufficient Credits
+                </h3>
+                <p className="text-red-300 mb-4">{error}</p>
+                <div className="flex gap-3">
+                  <Link
+                    href="/pricing"
+                    className="px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 text-white font-medium hover:shadow-lg transition"
+                  >
+                    Upgrade Plan
+                  </Link>
+                  <button
+                    onClick={() => setInsufficientCredits(false)}
+                    className="px-4 py-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition"
+                  >
+                    Dismiss
+                  </button>
+                </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error Message */}
+        {error && !insufficientCredits && (
+          <div className="mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+            <p className="text-yellow-400">{error}</p>
+          </div>
+        )}
+
+        {/* Quiz Generator Form */}
+        {questions.length === 0 && (
+          <div className="card mb-8">
+            <h2 className="text-xl font-semibold mb-6 text-[var(--foreground)]">Create Your Quiz</h2>
+
+            <div className="space-y-4">
+              {/* Topic Input */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Topic</label>
+                <input
+                  type="text"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                  placeholder="e.g., Photosynthesis, World War II, Calculus"
+                  className="w-full px-4 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-solid)]"
+                />
+              </div>
+
+              {/* Difficulty */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Difficulty</label>
+                <select
+                  value={difficulty}
+                  onChange={(e) => setDifficulty(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-solid)]"
+                >
+                  <option value="easy">Easy</option>
+                  <option value="medium">Medium</option>
+                  <option value="hard">Hard</option>
+                </select>
+              </div>
+
+              {/* Question Count */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Number of Questions</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={questionCount}
+                  onChange={(e) => setQuestionCount(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-solid)]"
+                />
+              </div>
+
+              {/* Generate Button */}
               <button
-                onClick={() => handleDeleteQuiz(quiz._id)}
-                className="text-red-600 hover:text-red-700 p-2"
+                onClick={generateQuiz}
+                disabled={generating || !topic.trim()}
+                className="w-full mt-6 btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                <Trash2 className="h-4 w-4" />
+                {generating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Brain className="h-4 w-4" />
+                    Generate Quiz (2 credits)
+                  </>
+                )}
               </button>
             </div>
+          </div>
+        )}
 
-            {lastAttempt && (
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 mb-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Last Score</span>
-                  <span className="font-bold text-emerald-600">{lastAttempt.score}%</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Average</span>
-                  <span className="font-bold">{averageScore}%</span>
-                </div>
-              </div>
-            )}
+        {/* Quiz Display */}
+        {questions.length > 0 && !showResults && (
+          <div className="space-y-6">
+            <div className="card">
+              <h2 className="text-2xl font-semibold mb-6">{topic} Quiz</h2>
 
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-4">
-              <Calendar className="h-4 w-4" />
-              <span>
-                Review {daysUntilReview > 0 ? `in ${daysUntilReview} days` : "today"}
-              </span>
+              {questions.map((q, idx) => (
+                <div key={q.id} className="mb-8 pb-8 border-b border-[var(--card-border)] last:border-b-0">
+                  <h3 className="font-semibold mb-4">
+                    Q{idx + 1}: {q.question}
+                  </h3>
+                  <ul className="space-y-2">
+                    {q.options.map((opt) => (
+                      <li key={opt.id}>
+                        <label className="flex items-center gap-3 p-3 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)] cursor-pointer hover:border-[var(--accent-solid)] transition">
+                          <input
+                            type="radio"
+                            name={`q-${q.id}`}
+                            value={opt.id}
+                            checked={userAnswers[q.id] === opt.id}
+                            onChange={() => handleAnswerChange(q.id, opt.id)}
+                            className="h-4 w-4"
+                          />
+                          <span>{opt.text}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+
+              <button
+                onClick={() => setShowResults(true)}
+                disabled={Object.keys(userAnswers).length < questions.length}
+                className="w-full mt-6 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Submit Quiz
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {showResults && questions.length > 0 && (
+          <div className="card">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold mb-4">Quiz Complete!</h2>
+              {(() => {
+                const { correct, total, percentage } = calculateScore();
+                return (
+                  <div>
+                    <div className="text-6xl font-bold text-[var(--accent-solid)] mb-2">
+                      {percentage}%
+                    </div>
+                    <p className="text-xl text-[var(--text-secondary)]">
+                      You got {correct} out of {total} questions correct
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
 
-            <button
-              onClick={() => handleStartQuiz(quiz)}
-              className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition flex items-center justify-center gap-2"
-            >
-              <Play className="h-4 w-4" />
-              Start Quiz
-            </button>
+            {/* Review Answers */}
+            <div className="space-y-6">
+              {questions.map((q, idx) => (
+                <div
+                  key={q.id}
+                  className={`p-4 rounded-lg ${
+                    userAnswers[q.id] === q.correctAnswer
+                      ? "bg-green-500/10 border border-green-500/30"
+                      : "bg-red-500/10 border border-red-500/30"
+                  }`}
+                >
+                  <h4 className="font-semibold mb-2">
+                    Q{idx + 1}: {q.question}
+                  </h4>
+                  <p className="text-sm mb-2">
+                    {userAnswers[q.id] === q.correctAnswer ? "✅ Correct" : "❌ Incorrect"}
+                  </p>
+                  <p className="text-sm">
+                    Your answer: <span className="font-medium">{userAnswers[q.id]}</span>
+                  </p>
+                  {userAnswers[q.id] !== q.correctAnswer && (
+                    <p className="text-sm text-green-400 mt-1">
+                      Correct answer: <span className="font-medium">{q.correctAnswer}</span>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => {
+                  setQuestions([]);
+                  setTopic("");
+                  setUserAnswers({});
+                  setShowResults(false);
+                }}
+                className="flex-1 btn-primary"
+              >
+                Generate Another Quiz
+              </button>
+              <Link href="/dashboard" className="flex-1 btn-secondary text-center">
+                Back to Dashboard
+              </Link>
+            </div>
           </div>
-        );
-      })}
+        )}
+      </div>
     </div>
   );
 }

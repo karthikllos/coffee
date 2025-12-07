@@ -273,11 +273,17 @@ export const authOptions = {
     async session({ session }) {
       try {
         await connectDb();
-        const dbUser = await User.findOne({ email: session.user.email });
+        const dbUser = await User.findOne({ email: session.user.email }).select(
+          "username profilepic subscriptionPlan credits creditsUsed subscriptionStatus"
+        );
+
         if (dbUser) {
           session.user.id = dbUser._id.toString();
           session.user.username = dbUser.username;
           session.user.profilepic = dbUser.profilepic;
+          session.user.subscriptionPlan = dbUser.subscriptionPlan; // ✅ Add this
+          session.user.credits = dbUser.credits; // ✅ Add this
+          session.user.creditsUsed = dbUser.creditsUsed; // ✅ Add this
         }
         return session;
       } catch (err) {

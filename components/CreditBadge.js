@@ -1,70 +1,80 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import Link from "next/link";
-import { Zap, AlertCircle } from "lucide-react";
+import { Zap, Crown, Infinity } from "lucide-react";
 
 export default function CreditBadge() {
-  const { data: session } = useSession();
   const [credits, setCredits] = useState(null);
-  const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session?.user) {
-      fetchCredits();
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchCredits, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [session]);
-
-  const fetchCredits = async () => {
-    try {
-      const res = await fetch(`/api/user/academic-profile?t=${Date.now()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setCredits(data.aiCredits || 0);
-        setPlan(data.subscriptionPlan);
+    const fetchCredits = async () => {
+      try {
+        const res = await fetch("/api/user/credits?t=" + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          setCredits(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch credits:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch credits:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  if (!session || loading) return null;
+    fetchCredits();
 
-  const isLowOnCredits = credits < 5 && plan !== "Pro Max" && plan !== "Premium";
-  const isUnlimited = plan === "Pro Max" || plan === "Premium";
+    // Refetch every 30 seconds
+    const interval = setInterval(fetchCredits, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading || !credits) {
+    return (
+      <div className="px-3 py-1.5 rounded-full bg-[var(--card-bg)] border border-[var(--card-border)] animate-pulse">
+        <span className="text-xs font-medium">Loading...</span>
+      </div>
+    );
+  }
+
+  // Premium/Pro Max - Unlimited
+  if (credits.isUnlimited) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white border border-purple-400">
+        <Crown className="h-4 w-4" />
+        <span className="text-xs font-semibold">Unlimited</span>
+      </div>
+    );
+  }
+
+  // Pro - Monthly allowance
+  if (credits.subscriptionPlan === "Pro") {
+    const used = 50 - credits.creditsRemaining;
+    return (
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white border border-blue-400">
+        <Zap className="h-4 w-4" />
+        <span className="text-xs font-semibold">{credits.creditsRemaining}/50</span>
+      </div>
+    );
+  }
+
+  // Free/Starter - Purchased credits
+  if (credits.creditsRemaining <= 0) {
+    return (
+      <a
+        href="/pricing"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-orange-600 text-white border border-red-400 hover:shadow-lg transition cursor-pointer"
+      >
+        <Zap className="h-4 w-4" />
+        <span className="text-xs font-semibold">0 Credits</span>
+      </a>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-3">
-      {/* Credit Display */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--card-bg)] border border-[var(--card-border)]">
-        <Zap className="h-4 w-4 text-yellow-500" />
-        <span className="text-sm font-medium text-[var(--foreground)]">
-          {isUnlimited ? "∞" : credits} Credits
-        </span>
-      </div>
-
-      {/* Low Credits Warning */}
-      {isLowOnCredits && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 animate-pulse">
-          <AlertCircle className="h-4 w-4 text-yellow-500" />
-          <span className="text-sm text-yellow-600 dark:text-yellow-400">
-            Low credits
-          </span>
-          <Link
-            href="/pricing"
-            className="ml-2 text-xs font-semibold text-yellow-600 dark:text-yellow-400 hover:underline"
-          >
-            Buy now
-          </Link>
-        </div>
-      )}
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white border border-green-400">
+      <Zap className="h-4 w-4" />
+      <span className="text-xs font-semibold">{credits.creditsRemaining}</span>
     </div>
   );
 }

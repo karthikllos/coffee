@@ -3,7 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2, Brain, Zap } from "lucide-react";
 
 export default function AIQuizPage() {
   const { data: session, status } = useSession();
@@ -14,11 +14,13 @@ export default function AIQuizPage() {
   const [generating, setGenerating] = useState(false);
   const [creditsRemaining, setCreditsRemaining] = useState(0);
   const [error, setError] = useState("");
+  const [isInsufficientCredits, setIsInsufficientCredits] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth");
     } else if (status === "authenticated") {
+      // OPTIONAL: Fetch initial credit count here if you create the GET /api/user/credits route
       setLoading(false);
     }
   }, [status, router]);
@@ -31,6 +33,7 @@ export default function AIQuizPage() {
 
     setGenerating(true);
     setError("");
+    setIsInsufficientCredits(false); // Reset credit error state
 
     try {
       const response = await fetch("/api/ai/quiz", {
@@ -42,12 +45,22 @@ export default function AIQuizPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || "Failed to generate quiz");
+        if (response.status === 402) {
+          setError(data.error || "Insufficient credits. Please upgrade.");
+          setIsInsufficientCredits(true); // Set state to show CTA
+        } else {
+          setError(data.error || "Failed to generate quiz");
+        }
+        setCreditsRemaining(data.creditsRemaining || creditsRemaining);
         return;
       }
 
+      // Success
       setQuestions(data.questions || []);
       setCreditsRemaining(data.creditsRemaining);
+      // Clear topic on success, if desired
+      setTopic(""); 
+
     } catch (err) {
       setError("Error generating quiz: " + err.message);
     } finally {
@@ -76,14 +89,25 @@ export default function AIQuizPage() {
             <h1 className="text-4xl font-bold">AI Quiz Generator</h1>
           </div>
           <p className="text-[var(--text-secondary)]">
-            Create custom quizzes to test your knowledge on any topic
+            Create custom quizzes to test your knowledge on any topic (Cost: 2 credits)
           </p>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
-            <p className="text-red-400">{error}</p>
+          <div className={`mb-6 p-4 rounded-lg border ${isInsufficientCredits ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+            <p className={`${isInsufficientCredits ? 'text-yellow-400' : 'text-red-400'}`}>{error}</p>
+            
+            {/* INSUFFICIENT CREDITS CALL TO ACTION */}
+            {isInsufficientCredits && (
+              <button 
+                onClick={() => router.push("/pricing")} 
+                className="mt-3 btn-primary bg-yellow-600 hover:bg-yellow-700 text-white flex items-center gap-2"
+              >
+                <Zap className="h-4 w-4" />
+                Upgrade Your Plan / Get More Credits
+              </button>
+            )}
           </div>
         )}
 
@@ -129,6 +153,7 @@ export default function AIQuizPage() {
                   {q.options?.map((opt, optIdx) => (
                     <li
                       key={optIdx}
+                      // NOTE: You'll want to add logic here to allow users to select an answer and check correctness
                       className="p-3 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)] cursor-pointer hover:border-[var(--accent-solid)] transition"
                     >
                       {opt}
@@ -139,7 +164,7 @@ export default function AIQuizPage() {
             ))}
             {creditsRemaining !== undefined && (
               <p className="text-sm text-[var(--text-tertiary)]">
-                Credits remaining: {creditsRemaining}
+                Credits remaining after generation: {creditsRemaining}
               </p>
             )}
           </div>
