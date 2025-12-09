@@ -8,12 +8,15 @@ import toast from "react-hot-toast";
 export default function ReflectionForm({ date = new Date(), onSuccess = () => {} }) {
   const router = useRouter();
 
-  const [energyRating, setEnergyRating] = useState(3);
-  const [focusRating, setFocusRating] = useState(3);
-  const [tasks, setTasks] = useState([]);
-  const [completedTaskIds, setCompletedTaskIds] = useState([]);
+  const [energyRating, setEnergyRating] = useState(5);
+  const [focusRating, setFocusRating] = useState(5);
+  const [tasksCompleted, setTasksCompleted] = useState(0);
+  const [hoursSpent, setHoursSpent] = useState(0);
+  const [aiSummary, setAiSummary] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   // Fetch tasks for the day on mount
   useEffect(() => {
@@ -48,6 +51,8 @@ export default function ReflectionForm({ date = new Date(), onSuccess = () => {}
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setError("");
+    setSuccess(false);
 
     try {
       // Calculate uncompleted tasks
@@ -62,6 +67,9 @@ export default function ReflectionForm({ date = new Date(), onSuccess = () => {}
         completedTasks: completedTaskIds,
         uncompletedTasks: uncompletedTaskIds,
         tasksReviewed: tasks.length,
+        tasksCompletedCount: parseInt(tasksCompleted),
+        totalHoursSpent: parseFloat(hoursSpent),
+        aiSummary,
       };
 
       const res = await fetch("/api/reflection", {
@@ -109,105 +117,84 @@ export default function ReflectionForm({ date = new Date(), onSuccess = () => {}
           {/* Energy Rating */}
           <div>
             <label className="block text-sm font-semibold mb-3 text-gray-900 dark:text-white">
-              Energy Level: {energyRating}/5
+              Energy Level:{" "}
+              <span className="text-lg font-bold">{energyRating}/10</span>
             </label>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setEnergyRating(star)}
-                  className={`p-2 rounded-lg transition ${
-                    energyRating >= star
-                      ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-500"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-400"
-                  }`}
-                >
-                  <Star className="h-6 w-6" fill="currentColor" />
-                </button>
-              ))}
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={energyRating}
+              onChange={(e) => setEnergyRating(e.target.value)}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-[var(--text-tertiary)] mt-1">
+              <span>Exhausted</span>
+              <span>Energized</span>
             </div>
           </div>
 
           {/* Focus Rating */}
           <div>
             <label className="block text-sm font-semibold mb-3 text-gray-900 dark:text-white">
-              Focus Level: {focusRating}/5
+              Focus Level:{" "}
+              <span className="text-lg font-bold">{focusRating}/10</span>
             </label>
-            <div className="flex items-center gap-2">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  onClick={() => setFocusRating(star)}
-                  className={`p-2 rounded-lg transition ${
-                    focusRating >= star
-                      ? "bg-blue-100 dark:bg-blue-900/30 text-blue-500"
-                      : "bg-gray-100 dark:bg-gray-700 text-gray-400"
-                  }`}
-                >
-                  <Star className="h-6 w-6" fill="currentColor" />
-                </button>
-              ))}
+            <input
+              type="range"
+              min="1"
+              max="10"
+              value={focusRating}
+              onChange={(e) => setFocusRating(e.target.value)}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-[var(--text-tertiary)] mt-1">
+              <span>Distracted</span>
+              <span>Focused</span>
             </div>
           </div>
 
-          {/* Tasks Completion */}
+          {/* Tasks Completed */}
           <div>
-            <label className="block text-sm font-semibold mb-3 text-gray-900 dark:text-white">
-              Today's Tasks ({completedTaskIds.length}/{tasks.length} completed)
+            <label className="block text-sm font-medium mb-2">
+              Tasks Completed
             </label>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {tasks.length === 0 ? (
-                <p className="text-gray-500 dark:text-gray-400 text-sm italic">
-                  No tasks scheduled for today.
-                </p>
-              ) : (
-                tasks.map((task) => {
-                  const taskId = task.taskId || task.id;
-                  const isCompleted = completedTaskIds.includes(taskId);
-                  return (
-                    <button
-                      key={taskId}
-                      type="button"
-                      onClick={() => toggleTaskCompletion(taskId)}
-                      className={`w-full p-3 rounded-lg border-2 transition flex items-start gap-3 ${
-                        isCompleted
-                          ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-700"
-                          : "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600"
-                      }`}
-                    >
-                      <div className="pt-1">
-                        {isCompleted ? (
-                          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-                        ) : (
-                          <Circle className="h-5 w-5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
-                        )}
-                      </div>
-                      <div className="text-left flex-1">
-                        <p
-                          className={`font-medium ${
-                            isCompleted
-                              ? "text-emerald-900 dark:text-emerald-100 line-through"
-                              : "text-gray-900 dark:text-white"
-                          }`}
-                        >
-                          {task.title}
-                        </p>
-                        {task.scheduledStart && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {new Date(task.scheduledStart).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </p>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
+            <input
+              type="number"
+              min="0"
+              value={tasksCompleted}
+              onChange={(e) => setTasksCompleted(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)]"
+            />
+          </div>
+
+          {/* Hours Spent */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Hours Spent Studying
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={hoursSpent}
+              onChange={(e) => setHoursSpent(e.target.value)}
+              className="w-full px-4 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)]"
+            />
+          </div>
+
+          {/* AI Summary */}
+          <div>
+            <label className="block text-sm font-medium mb-2">
+              Today's Summary (Optional)
+            </label>
+            <textarea
+              value={aiSummary}
+              onChange={(e) => setAiSummary(e.target.value)}
+              placeholder="How was your day? What did you learn?"
+              rows="4"
+              className="w-full px-4 py-2 rounded-lg bg-[var(--input-bg)] border border-[var(--input-border)]"
+            />
           </div>
 
           {/* Submit Section */}
@@ -230,9 +217,12 @@ export default function ReflectionForm({ date = new Date(), onSuccess = () => {}
             <button
               type="button"
               onClick={() => {
-                setEnergyRating(3);
-                setFocusRating(3);
+                setEnergyRating(5);
+                setFocusRating(5);
                 setCompletedTaskIds([]);
+                setTasksCompleted(0);
+                setHoursSpent(0);
+                setAiSummary("");
               }}
               className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
             >

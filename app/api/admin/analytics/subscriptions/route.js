@@ -14,10 +14,10 @@ export async function GET(request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // TODO: Add admin role check
-    // if (!session.user.isAdmin) {
-    //   return NextResponse.json({ error: "Admin access required" }, { status: 403 });
-    // }
+    // ✅ UNCOMMENT: Add admin role check
+    if (!session.user.isAdmin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
 
     const analytics = await getSubscriptionAnalytics();
 

@@ -58,6 +58,61 @@ const UserSchema = new mongoose.Schema(
         createdAt: { type: Date, default: Date.now },
       },
     ],
+
+    dailyBlueprint: {
+      type: {
+        date: String,
+        routines: [
+          {
+            name: String,
+            startTime: String,
+            endTime: String,
+            description: String,
+          },
+        ],
+        assignments: [
+          {
+            title: String,
+            subject: String,
+            dueDate: Date,
+            priority: { type: String, enum: ["low", "medium", "high"] },
+            completed: Boolean,
+          },
+        ],
+        microGoals: [
+          {
+            goal: String,
+            targetTime: String,
+            completed: Boolean,
+          },
+        ],
+        focusPrediction: {
+          score: Number,
+          hours: [Object],
+        },
+        createdAt: Date,
+        updatedAt: Date,
+      },
+      default: null,
+    },
+    lastBlueprintUpdate: Date,
+
+    // Academic Profile
+    academicProfile: {
+      reflections: [
+        {
+          date: { type: Date, default: Date.now },
+          energyRating: { type: Number, min: 1, max: 10, required: true },
+          focusRating: { type: Number, min: 1, max: 10, required: true },
+          uncompletedTasks: [String],
+          tasksCompletedCount: { type: Number, default: 0 },
+          totalHoursPlanned: { type: Number, default: 0 },
+          totalHoursSpent: { type: Number, default: 0 },
+          aiSummary: String,
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+    },
   },
   { timestamps: true }
 );

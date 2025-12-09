@@ -329,6 +329,19 @@ const Navbar = () => {
           </div>
         </div>
       )}
+
+      {/* Admin Analytics Link - Only for admin users */}
+      {session?.user?.isAdmin && (
+        <div className="mt-4 px-6">
+          <Link
+            href="/admin/analytics"
+            className="flex items-center gap-2 px-4 py-3 rounded-lg bg-[var(--card-bg)] hover:bg-[var(--button-hover)] transition duration-200 text-sm font-medium"
+          >
+            <span className="text-lg">📊</span>
+            <span>Admin Analytics</span>
+          </Link>
+        </div>
+      )}
     </nav>
   );
 };

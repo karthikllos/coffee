@@ -5,6 +5,7 @@ import SessionProvider from "../components/Sessionwrapper";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "./globals.css";
+import { initTaskReminderCron } from "@/lib/cronJobs";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,6 +22,11 @@ export const metadata = {
   description:
     "AI-powered academic planner for students - schedule tasks, track progress, and optimize study time",
 };
+
+// Only initialize in production or when explicitly enabled
+if (process.env.NODE_ENV === "production" || process.env.ENABLE_CRON === "true") {
+  initTaskReminderCron();
+}
 
 export default function RootLayout({ children }) {
   return (
