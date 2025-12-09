@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
     username: {
       type: String,
@@ -37,15 +38,17 @@ const UserSchema = new mongoose.Schema(
     subscriptionStartDate: Date,
     subscriptionRenewalDate: Date,
 
-    // Credits system based on tier
-    credits: {
+    aiCredits: {
       type: Number,
-      default: 0,
+      default: 5, // Free tier gets 5 credits
     },
-    creditsUsed: {
-      type: Number,
-      default: 0,
-    },
+
+    // For Pro plan monthly reset tracking
+    creditMonthResetDate: Date,
+    // Purchase tracking
+    lastCreditPurchaseDate: Date,
+    lastCreditPurchaseAmount: Number,
+    lastCreditPaymentId: String,
 
     // Payment history
     paymentHistory: [
@@ -62,6 +65,7 @@ const UserSchema = new mongoose.Schema(
     dailyBlueprint: {
       type: {
         date: String,
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         routines: [
           {
             name: String,
@@ -88,7 +92,7 @@ const UserSchema = new mongoose.Schema(
         ],
         focusPrediction: {
           score: Number,
-          hours: [Object],
+          hours: [{ timestamp: Date, hourOfDay: Number, score: Number }],
         },
         createdAt: Date,
         updatedAt: Date,
@@ -97,6 +101,11 @@ const UserSchema = new mongoose.Schema(
     },
     lastBlueprintUpdate: Date,
 
+    // Admin access
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
     // Academic Profile
     academicProfile: {
       reflections: [
