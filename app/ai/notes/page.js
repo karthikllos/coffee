@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Loader2, Sparkles, Zap, BatteryCharging, ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { dispatchCreditUpdate } from '@/components/CreditBadge';
 
 export default function AINotesPage() {
   const { data: session, status } = useSession();
@@ -73,6 +74,7 @@ export default function AINotesPage() {
       } else {
          // Fallback: assume 1 credit was used if the API didn't return the new count
         setCreditsRemaining(prev => Math.max(0, prev - 1));
+        dispatchCreditUpdate();
       }
       
     } catch (err) {

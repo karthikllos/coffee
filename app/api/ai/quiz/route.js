@@ -2,7 +2,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../../lib/auth";
-import { enforceCredits } from "../../../../lib/creditEnforcement";
+// 🚨 ASSUMPTION: 'refundCredits' is now exported from this file
+import { enforceCredits, refundCredits } from "../../../../lib/creditEnforcement";
 import { generateQuiz } from "../../../../lib/aiService";
 import connectDb from "../../../../lib/connectDb";
 import User from "../../../../models/user";
@@ -14,13 +15,16 @@ export const dynamic = "force-dynamic";
  * Cost: 2 credits (Pro: from monthly 50, Pro Max/Premium: free, Free/Starter: from purchased credits)
  */
 export async function POST(request) {
+  const serviceType = "AI_QUIZ";
+  const requiredCredits = 2; // Hardcoding cost as it's defined in the enforcement logic
+
   try {
-    console.log("[AI Quiz] 🎯 Starting quiz generation");
+    console.log(`[${serviceType}] 🎯 Starting quiz generation`);
 
     // ✅ 1. Authentication check
     const session = await getServerSession(authOptions);
     if (!session?.user) {
-      console.warn("[AI Quiz] ❌ Unauthorized attempt");
+      console.warn(`[${serviceType}] ❌ Unauthorized attempt`);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -29,7 +33,7 @@ export async function POST(request) {
     try {
       body = await request.json();
     } catch (parseError) {
-      console.error("[AI Quiz] ❌ Invalid JSON:", parseError);
+      console.error(`[${serviceType}] ❌ Invalid JSON:`, parseError);
       return NextResponse.json(
         { error: "Invalid request body" },
         { status: 400 }
@@ -40,7 +44,7 @@ export async function POST(request) {
 
     // Validate topic
     if (!topic || typeof topic !== "string" || !topic.trim()) {
-      console.warn("[AI Quiz] ❌ Missing or invalid topic");
+      console.warn(`[${serviceType}] ❌ Missing or invalid topic`);
       return NextResponse.json(
         { error: "Topic is required and must be a non-empty string" },
         { status: 400 }
@@ -50,7 +54,7 @@ export async function POST(request) {
     // Validate difficulty
     const validDifficulties = ["easy", "medium", "hard"];
     if (!validDifficulties.includes(difficulty)) {
-      console.warn("[AI Quiz] ❌ Invalid difficulty:", difficulty);
+      console.warn(`[${serviceType}] ❌ Invalid difficulty:`, difficulty);
       return NextResponse.json(
         { error: "Difficulty must be one of: easy, medium, hard" },
         { status: 400 }
@@ -60,14 +64,14 @@ export async function POST(request) {
     // Validate question count
     const count = parseInt(questionCount);
     if (isNaN(count) || count < 1 || count > 20) {
-      console.warn("[AI Quiz] ❌ Invalid question count:", questionCount);
+      console.warn(`[${serviceType}] ❌ Invalid question count:`, questionCount);
       return NextResponse.json(
         { error: "Question count must be between 1 and 20" },
         { status: 400 }
       );
     }
 
-    // ✅ 3. Database connection
+    // ✅ 3. Database connection and User lookup
     await connectDb();
 
     const user = await User.findOne({
@@ -75,25 +79,23 @@ export async function POST(request) {
     });
 
     if (!user) {
-      console.error("[AI Quiz] ❌ User not found:", session.user.email);
+      console.error(`[${serviceType}] ❌ User not found:`, session.user.email);
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    console.log("[AI Quiz] 👤 User found:", {
+    console.log(`[${serviceType}] 👤 User found:`, {
       id: user._id,
       email: user.email,
       plan: user.subscriptionPlan,
-      credits: user.aiCredits,
     });
 
-    // ✅ 4. ATOMIC credit enforcement
-    const creditCheck = await enforceCredits(user._id.toString(), "AI_QUIZ");
+    // ✅ 4. ATOMIC credit enforcement (STEP 1: Enforce)
+    const creditCheck = await enforceCredits(user._id.toString(), serviceType);
 
     if (!creditCheck.success) {
-      console.warn("[AI Quiz] ❌ Credit check failed:", {
+      console.warn(`[${serviceType}] ❌ Credit check failed:`, {
         userId: user._id,
         reason: creditCheck.message,
-        creditsRemaining: creditCheck.creditsRemaining,
       });
 
       return NextResponse.json(
@@ -101,36 +103,33 @@ export async function POST(request) {
           error: creditCheck.message,
           message: creditCheck.message,
           creditsRemaining: creditCheck.creditsRemaining,
-          requiredCredits: 2,
+          requiredCredits: requiredCredits,
         },
         { status: creditCheck.code }
       );
     }
 
-    console.log("[AI Quiz] ✅ Credits checked:", {
+    console.log(`[${serviceType}] ✅ Credits checked:`, {
       used: creditCheck.cost,
       remaining: creditCheck.creditsRemaining,
       isUnlimited: creditCheck.isUnlimited,
     });
 
-    // ✅ 5. Generate quiz using Gemini API
+    // ✅ 5. Generate quiz using AI (STEP 2: Perform AI operation)
     let result;
     try {
       result = await generateQuiz(topic, difficulty, count);
     } catch (aiError) {
-      console.error("[AI Quiz] ❌ AI generation failed:", aiError);
-      
-      // Refund credits if AI fails
+      console.error(`[${serviceType}] ❌ AI generation failed:`, aiError);
+
+      // ✅ STEP 3: REFUND on AI failure
       if (!creditCheck.isUnlimited) {
-        try {
-          await User.updateOne(
-            { _id: user._id },
-            { $inc: { aiCredits: creditCheck.cost } }
-          );
-          console.log("[AI Quiz] 💰 Credits refunded due to AI failure");
-        } catch (refundError) {
-          console.error("[AI Quiz] ❌ Credit refund failed:", refundError);
-        }
+        await refundCredits(
+          user._id.toString(),
+          creditCheck.cost,
+          "ai_operation_failed"
+        );
+        console.log(`[${serviceType}] 💰 Credits refunded due to AI failure`);
       }
 
       return NextResponse.json(
@@ -142,43 +141,33 @@ export async function POST(request) {
       );
     }
 
-    // ✅ 6. Validate AI response
-    if (!result || !result.questions || !Array.isArray(result.questions)) {
-      console.error("[AI Quiz] ❌ Invalid AI response structure:", result);
-      
-      // Refund credits
+    // ✅ 6. Validate AI response (STEP 4: Validate response)
+    if (!result || !result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
+      const reason = !result?.questions ? "Invalid response structure" : "Empty questions array";
+      console.error(`[${serviceType}] ❌ ${reason}:`, result);
+
+      // ✅ STEP 3: REFUND on invalid response
       if (!creditCheck.isUnlimited) {
-        await User.updateOne(
-          { _id: user._id },
-          { $inc: { aiCredits: creditCheck.cost } }
+        await refundCredits(
+          user._id.toString(),
+          creditCheck.cost,
+          "invalid_response"
         );
+        console.log(`[${serviceType}] 💰 Credits refunded due to ${reason}`);
       }
 
+      const errorMessage = reason === "Empty questions array" 
+        ? "No questions generated. Please try a different topic."
+        : "Invalid response from AI service. Please try again.";
+
       return NextResponse.json(
-        { error: "Invalid response from AI service. Please try again." },
+        { error: errorMessage },
         { status: 500 }
       );
     }
 
-    if (result.questions.length === 0) {
-      console.warn("[AI Quiz] ⚠️ Empty questions array");
-      
-      // Refund credits
-      if (!creditCheck.isUnlimited) {
-        await User.updateOne(
-          { _id: user._id },
-          { $inc: { aiCredits: creditCheck.cost } }
-        );
-      }
-
-      return NextResponse.json(
-        { error: "No questions generated. Please try a different topic." },
-        { status: 500 }
-      );
-    }
-
-    // ✅ 7. Success response
-    console.log("[AI Quiz] ✅ Quiz generated successfully:", {
+    // ✅ 7. Success response (STEP 5: Success)
+    console.log(`[${serviceType}] ✅ Quiz generated successfully:`, {
       userId: user._id,
       topic,
       difficulty,
@@ -204,7 +193,7 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("[AI Quiz] ❌ Unexpected error:", {
+    console.error(`[${serviceType}] ❌ Unexpected error:`, {
       message: error.message,
       stack: error.stack,
     });
@@ -240,14 +229,16 @@ export async function GET(request) {
     }
 
     const isUnlimited = ["Pro Max", "Premium"].includes(user.subscriptionPlan);
+    // Use the required credits constant
+    const required = 2; 
     const available = isUnlimited ? 999999 : (user.aiCredits || 0);
 
     return NextResponse.json(
       {
-        available: available >= 2,
+        available: available >= required,
         credits: {
           available: available,
-          required: 2,
+          required: required,
           isUnlimited,
         },
         plan: user.subscriptionPlan,

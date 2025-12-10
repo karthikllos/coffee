@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Loader2, Brain, Zap, CheckCircle, XCircle, ChevronRight } from "lucide-react";
+import { dispatchCreditUpdate } from '@/components/CreditBadge';
 
 // The CSS variables for this design must be added to your global CSS (e.g., globals.css)
 // See the separate CSS section below.
@@ -71,6 +72,7 @@ export default function AIQuizPage() {
         setQuestions(data.quiz.questions);
         setCreditsUsed(data.credits?.used ?? 2);
         setCreditsRemaining(data.credits?.remaining ?? creditsRemaining);
+        dispatchCreditUpdate();
       } else {
         setError("Invalid response from server");
         console.error("Quiz response:", data);
