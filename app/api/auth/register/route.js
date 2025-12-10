@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import connectDb from "../../../../lib/connectDb";
 import User from "../../../../models/user";
 import { sendVerificationEmail } from "../../../../lib/emailService";
+import bcryptjs from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 

@@ -1,9 +1,9 @@
 // app/api/checkout/subscription/verify/route.js
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../../lib/auth";
-import connectDb from "../../../../lib/connectDb";
-import User from "../../../../models/user";
+import { authOptions } from "../../../auth/[...nextauth]/route";
+import connectDb from "../../../../../lib/connectDb";
+import User from "../../../../../models/user";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";

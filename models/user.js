@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import bcryptjs from "bcryptjs";
 
 const UserSchema = new mongoose.Schema(
   {
@@ -8,6 +9,7 @@ const UserSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
     username: {
       type: String,
@@ -23,6 +25,40 @@ const UserSchema = new mongoose.Schema(
     },
     profilepic: String,
 
+    // OAuth
+    isOAuthUser: {
+      type: Boolean,
+      default: false,
+    },
+    oauthProviders: [{
+      provider: String,
+      providerId: String,
+    }],
+
+    // Email verification
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: String,
+    emailVerificationExpires: Date,
+
+    // Password reset
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+
+    // Account security
+    accountLocked: {
+      type: Boolean,
+      default: false,
+    },
+    accountLockedUntil: Date,
+    loginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lastLoginAt: Date,
+
     // Subscription Details
     subscriptionPlan: {
       type: String,
@@ -36,16 +72,17 @@ const UserSchema = new mongoose.Schema(
     },
     subscriptionStartDate: Date,
     subscriptionRenewalDate: Date,
+    subscriptionPaymentId: String,
 
-    // Credits system based on tier
-    credits: {
+    // AI Credits System
+    aiCredits: {
       type: Number,
-      default: 0,
+      default: 5, // Free tier gets 5 credits
     },
-    creditsUsed: {
-      type: Number,
-      default: 0,
-    },
+    creditMonthResetDate: Date,
+    lastCreditPurchaseDate: Date,
+    lastCreditPurchaseAmount: Number,
+    lastCreditPaymentId: String,
 
     // Payment history
     paymentHistory: [
@@ -59,36 +96,45 @@ const UserSchema = new mongoose.Schema(
       },
     ],
 
+    // Daily Blueprint - FIXED to persist for 24h
     dailyBlueprint: {
       type: {
-        date: String,
+        date: String, // YYYY-MM-DD format
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         routines: [
           {
+            id: String,
             name: String,
             startTime: String,
             endTime: String,
+            duration: Number,
+            status: String,
             description: String,
           },
         ],
         assignments: [
           {
+            id: String,
             title: String,
             subject: String,
             dueDate: Date,
             priority: { type: String, enum: ["low", "medium", "high"] },
+            status: String,
             completed: Boolean,
           },
         ],
         microGoals: [
           {
+            id: String,
             goal: String,
             targetTime: String,
+            status: String,
             completed: Boolean,
           },
         ],
         focusPrediction: {
           score: Number,
-          hours: [Object],
+          hours: [{ timestamp: Date, hourOfDay: Number, score: Number }],
         },
         createdAt: Date,
         updatedAt: Date,
@@ -97,8 +143,17 @@ const UserSchema = new mongoose.Schema(
     },
     lastBlueprintUpdate: Date,
 
+    // Admin access
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+
     // Academic Profile
     academicProfile: {
+      institution: String,
+      major: String,
+      targetHoursPerWeek: Number,
       reflections: [
         {
           date: { type: Date, default: Date.now },
@@ -113,11 +168,18 @@ const UserSchema = new mongoose.Schema(
         },
       ],
     },
+
+    // Study tracking
+    studyStreak: {
+      type: Number,
+      default: 0,
+    },
+    lastStudyDate: Date,
   },
   { timestamps: true }
 );
 
-// Hash password before saving
+// ✅ FIXED: Hash password before saving
 UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
 

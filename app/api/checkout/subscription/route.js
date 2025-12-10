@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../lib/authConfig";
-import connectDb from "../../../lib/connectDb";
-import User from "../../../models/user";
+import { authOptions } from "../../auth/[...nextauth]/route";
+import connectDb from "../../../../lib/connectDb";
+import User from "../../../../models/user";
 
 export const dynamic = "force-dynamic";
 
