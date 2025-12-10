@@ -74,12 +74,18 @@ const UserSchema = new mongoose.Schema(
     subscriptionRenewalDate: Date,
     subscriptionPaymentId: String,
 
-    // AI Credits System
     aiCredits: {
       type: Number,
       default: 5, // Free tier gets 5 credits
     },
     creditMonthResetDate: Date,
+    lastCreditPurchaseDate: Date,
+    lastCreditPurchaseAmount: Number,
+    lastCreditPaymentId: String,
+
+    // For Pro plan monthly reset tracking
+    creditMonthResetDate: Date,
+    // Purchase tracking
     lastCreditPurchaseDate: Date,
     lastCreditPurchaseAmount: Number,
     lastCreditPaymentId: String,
@@ -99,7 +105,7 @@ const UserSchema = new mongoose.Schema(
     // Daily Blueprint - FIXED to persist for 24h
     dailyBlueprint: {
       type: {
-        date: String, // YYYY-MM-DD format
+        date: String,
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         routines: [
           {
@@ -148,7 +154,6 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
     // Academic Profile
     academicProfile: {
       institution: String,
