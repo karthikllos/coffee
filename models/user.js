@@ -76,13 +76,23 @@ const UserSchema = new mongoose.Schema(
     subscriptionRenewalDate: Date,
     subscriptionPaymentId: String,
 
-    // Credit tracking
+
+
+
     aiCredits: {
       type: Number,
-      default: 5, // Free tier gets 5 credits
+      default: 5, // Free tier gets 5 credits by default
+      min: 0
     },
-    creditMonthResetDate: Date,
-
+    creditsUsed: {
+      type: Number,
+      default: 0, // ✅ CRITICAL: This field was missing!
+      min: 0
+    },
+    creditMonthResetDate: {
+      type: Date,
+      default: Date.now
+    },
     // Purchase tracking
     lastCreditPurchaseDate: Date,
     lastCreditPurchaseAmount: Number,
@@ -196,21 +206,49 @@ UserSchema.pre("save", async function (next) {
   }
 });
 
+UserSchema.pre("save", async function (next) {
+  // Initialize credits if not set
+  if (this.isNew || this.aiCredits === undefined || this.aiCredits === null) {
+    const PLAN_CREDITS = {
+      'Free': 5,
+      'Starter': 10,
+      'Pro': 50,
+      'Pro Max': 999999,
+      'Premium': 999999
+    };
+    
+    this.aiCredits = PLAN_CREDITS[this.subscriptionPlan] || 5;
+    this.creditsUsed = 0;
+    console.log(`[User Model] Initialized credits: ${this.aiCredits} for plan: ${this.subscriptionPlan}`);
+  }
+  
+  next();
+});
+
 // ✅ ADDED: Helper method to create a password reset token
 UserSchema.methods.createPasswordResetToken = function () {
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    // Hash the token and save it to the database
-    this.passwordResetToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
-    
-    // Set token expiration to 1 hour (3600000 milliseconds)
-    this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
-    
-    // Return the unhashed token to be sent in the email
-    return resetToken;
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  // Hash the token and save it to the database
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // Set token expiration to 1 hour (3600000 milliseconds)
+  this.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+
+  // Return the unhashed token to be sent in the email
+  return resetToken;
 };
+
+UserSchema.post("save", function(doc, next) {
+  // Ensure creditsUsed never exceeds aiCredits
+  if (doc.creditsUsed > doc.aiCredits) {
+    doc.creditsUsed = doc.aiCredits;
+    doc.save();
+  }
+  next();
+});
 
 
 export default mongoose.models.User || mongoose.model("User", UserSchema);
