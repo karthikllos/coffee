@@ -1,7 +1,7 @@
 // app/api/checkout/subscription/verify/route.js
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../../auth/[...nextauth]/route";
+import { authOptions } from "../../../../../lib/auth";
 import connectDb from "../../../../../lib/connectDb";
 import User from "../../../../../models/user";
 import crypto from "crypto";
@@ -64,7 +64,7 @@ export async function POST(request) {
           message: "Payment already processed",
           subscription: {
             planName: existingPayment.subscriptionPlan,
-            credits: existingPayment.credits,
+            credits: existingPayment.aiCredits,
             status: existingPayment.subscriptionStatus,
           },
         },
@@ -81,18 +81,25 @@ export async function POST(request) {
       starter: "Starter",
       pro: "Pro",
       premium: "Premium",
+      PLAN_PRO_MONTHLY: "Pro",
+      PLAN_PRO_MAX_MONTHLY: "Pro Max",
+      PLAN_FREE: "Free",
     };
 
     const amounts = {
       Starter: 4999,
       Pro: 9999,
+      "Pro Max": 19999,
       Premium: 19999,
+      Free: 0,
     };
 
     const credits = {
       Starter: 50,
       Pro: 200,
+      "Pro Max": 500,
       Premium: 1000,
+      Free: 5,
     };
 
     const newPlan = planMapping[planId] || "Pro";
@@ -107,7 +114,7 @@ export async function POST(request) {
         subscriptionStatus: "active",
         subscriptionStartDate: now,
         subscriptionRenewalDate: renewalDate,
-        credits: credits[newPlan],
+        aiCredits: credits[newPlan],
         creditsUsed: 0,
         lastPaymentDate: now,
         lastPaymentAmount: amounts[newPlan],
@@ -115,6 +122,7 @@ export async function POST(request) {
         $push: {
           paymentHistory: {
             razorpayPaymentId: razorpay_payment_id,
+            razorpayOrderId: razorpay_order_id,
             plan: newPlan,
             amount: amounts[newPlan],
             status: "completed",
@@ -132,12 +140,17 @@ export async function POST(request) {
       credits: credits[newPlan],
     });
 
+    // ✅ CRITICAL FIX: Update the session with new subscription plan
+    if (session.user) {
+      session.user.subscriptionPlan = newPlan;
+    }
+
     return NextResponse.json(
       {
         success: true,
         subscription: {
           planName: updatedUser.subscriptionPlan,
-          credits: updatedUser.credits,
+          credits: updatedUser.aiCredits,
           status: updatedUser.subscriptionStatus,
           renewalDate: updatedUser.subscriptionRenewalDate,
         },

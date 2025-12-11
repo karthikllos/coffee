@@ -3,24 +3,34 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Moon, Sun, Users, CreditCard, ChevronDown, Sparkles, Brain, Zap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Moon, Sun, Users, CreditCard, ChevronDown, Sparkles, Brain, Zap, Crown, Star } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
 import CreditBadge from "./CreditBadge";
 
 const Navbar = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [aiDropdownOpen, setAiDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    
+    // Auto-refresh session every 30 seconds to catch subscription updates
+    const interval = setInterval(() => {
+      if (status === "authenticated") {
+        update();
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [status, update]);
 
   const navItems = [
     { label: "Features", href: "/features" },
@@ -43,11 +53,38 @@ const Navbar = () => {
     setTheme(newTheme);
   };
 
-  // ✅ Check subscription from session
-  const isPro = session?.user?.subscriptionPlan && 
-    (session.user.subscriptionPlan === "Pro" || 
-     session.user.subscriptionPlan === "Premium" ||
-     session.user.subscriptionPlan === "Starter");
+  // ✅ Check subscription from session with fallback
+  const userPlan = session?.user?.subscriptionPlan || "Free";
+  const isPro = userPlan && ["Pro", "Premium", "Pro Max", "Starter"].includes(userPlan);
+
+  // Get plan display details
+  const getPlanIcon = (plan) => {
+    switch(plan) {
+      case "Premium":
+      case "Pro Max":
+        return <Crown className="h-4 w-4" />;
+      case "Pro":
+        return <Star className="h-4 w-4" />;
+      case "Starter":
+        return <Zap className="h-4 w-4" />;
+      default:
+        return null;
+    }
+  };
+
+  const getPlanColor = (plan) => {
+    switch(plan) {
+      case "Premium":
+      case "Pro Max":
+        return "from-purple-500 to-pink-500";
+      case "Pro":
+        return "from-emerald-500 to-teal-500";
+      case "Starter":
+        return "from-blue-500 to-cyan-500";
+      default:
+        return "from-gray-500 to-gray-600";
+    }
+  };
 
   return (
     <nav className="w-full text-[color:var(--foreground)] px-6 py-4 shadow-md bg-[var(--background)] border-b border-[color:var(--accent-border)]">
@@ -131,9 +168,26 @@ const Navbar = () => {
             </div>
           )}
 
-          {/* Authenticated user dropdown */}
+          {/* Authenticated user section */}
           {session ? (
             <div className="flex items-center gap-3 relative">
+              {/* ✅ CURRENT PLAN BADGE */}
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r ${getPlanColor(userPlan)} text-white shadow-lg hover:shadow-xl transition-all duration-200`}>
+                {getPlanIcon(userPlan)}
+                <span className="text-sm font-bold">{userPlan}</span>
+              </div>
+
+              {/* ✅ UPGRADE BUTTON for Free/Starter users */}
+              {(userPlan === "Free" || userPlan === "Starter") && (
+                <Link
+                  href="/pricing"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold text-sm hover:shadow-lg transition-all duration-200 hover:scale-105 animate-pulse"
+                >
+                  ⚡ Upgrade
+                </Link>
+              )}
+
+              {/* User Dropdown */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-[color:var(--muted)]">
                   {session.user?.username || session.user?.email || "Account"}
@@ -161,11 +215,24 @@ const Navbar = () => {
                 <div className="absolute top-full right-0 mt-2 bg-[var(--card-bg)] border border-[var(--card-border)] rounded-lg shadow-lg z-50 min-w-48 animate-in fade-in slide-in-from-top-2">
                   {/* Plan Badge */}
                   <div className="px-4 py-3 border-b border-[var(--card-border)]">
-                    <p className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide">Plan</p>
-                    <p className="text-sm font-semibold text-[color:var(--accent-solid)]">
-                      {session.user?.subscriptionPlan || "Free"}
-                    </p>
+                    <p className="text-xs text-[color:var(--text-tertiary)] uppercase tracking-wide">Current Plan</p>
+                    <div className={`flex items-center gap-2 mt-1 text-sm font-bold bg-gradient-to-r ${getPlanColor(userPlan)} bg-clip-text text-transparent`}>
+                      {getPlanIcon(userPlan)}
+                      <span>{userPlan}</span>
+                    </div>
                   </div>
+
+                  {/* Upgrade Link (for non-premium users) */}
+                  {(userPlan === "Free" || userPlan === "Starter" || userPlan === "Pro") && (
+                    <Link
+                      href="/pricing"
+                      className="flex items-center gap-2 px-4 py-3 hover:bg-[var(--button-hover)] transition duration-200 border-b border-[var(--card-border)] text-[color:var(--foreground)] hover:text-[color:var(--accent-solid)] font-semibold"
+                      onClick={() => setDropdownOpen(false)}
+                    >
+                      <Crown className="h-4 w-4" />
+                      <span>Upgrade Plan</span>
+                    </Link>
+                  )}
 
                   {/* Billing Link */}
                   <Link
@@ -287,18 +354,35 @@ const Navbar = () => {
           <div className="flex flex-col gap-3 px-2 border-t border-[var(--card-border)] pt-4">
             {session ? (
               <>
+                {/* Current Plan Display */}
+                <div className="px-3 py-2">
+                  <p className="text-xs text-[color:var(--text-tertiary)] uppercase">Current Plan</p>
+                  <div className={`flex items-center gap-2 mt-1 text-sm font-bold bg-gradient-to-r ${getPlanColor(userPlan)} bg-clip-text text-transparent`}>
+                    {getPlanIcon(userPlan)}
+                    <span>{userPlan}</span>
+                  </div>
+                </div>
+
+                {/* Account Info */}
                 <div className="px-3 py-2">
                   <p className="text-xs text-[color:var(--text-tertiary)] uppercase">Account</p>
                   <p className="text-sm font-semibold text-[color:var(--foreground)]">
                     {session.user?.username || session.user?.email}
                   </p>
                 </div>
-                <div className="px-3 py-2">
-                  <p className="text-xs text-[color:var(--text-tertiary)] uppercase">Plan</p>
-                  <p className="text-sm font-semibold text-[color:var(--accent-solid)]">
-                    {session.user?.subscriptionPlan || "Free"}
-                  </p>
-                </div>
+
+                {/* Upgrade (if applicable) */}
+                {(userPlan === "Free" || userPlan === "Starter") && (
+                  <Link
+                    href="/pricing"
+                    className="px-4 py-3 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold text-center"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    ⚡ Upgrade to Premium
+                  </Link>
+                )}
+
+                {/* Billing */}
                 <Link
                   href="/account/billing"
                   className="flex items-center gap-2 px-4 py-3 rounded-lg bg-[var(--card-bg)] hover:bg-[var(--button-hover)] transition duration-200"
@@ -307,6 +391,8 @@ const Navbar = () => {
                   <CreditCard className="h-4 w-4" />
                   <span>Billing & Invoices</span>
                 </Link>
+
+                {/* Sign Out */}
                 <button
                   onClick={() => {
                     signOut({ callbackUrl: "/auth" });
