@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { toast } from "react-hot-toast";
@@ -30,7 +30,7 @@ const validateUsername = (username) => {
   return { requirements, isValid };
 };
 
-export default function AuthPage() {
+function AuthContent() {
   // Form state
   const [mode, setMode] = useState("login");
   const [isHydrated, setIsHydrated] = useState(false);
@@ -698,5 +698,17 @@ export default function AuthPage() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
+        Loading auth...
+      </main>
+    }>
+      <AuthContent />
+    </Suspense>
   );
 }

@@ -1,10 +1,10 @@
 // app/api/checkout/credits/route.js
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { addCredits } from "@/lib/creditEnforcement";
-import connectDb from "@/lib/connectDb";
-import User from "@/models/user";
+import { authOptions } from "../../../../app/api/auth/[...nextauth]/route";
+import { addCredits } from "../../../../lib/creditEnforcement";
+import connectDb from "../../../../lib/connectDb";
+import User from "../../../../models/user";
 
 export const dynamic = "force-dynamic";
 

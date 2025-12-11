@@ -1,4 +1,3 @@
-import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
 import { ThemeProvider } from "next-themes";
 import SessionProvider from "../components/Sessionwrapper";
@@ -6,16 +5,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import "./globals.css";
 import { initTaskReminderCron } from "../lib/cronJobs";
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-});
 
 export const metadata = {
   title: "StudySync Daily: Academic Planner",
@@ -39,7 +28,7 @@ export default function RootLayout({ children }) {
           defer
         />
       </head>
-      <body className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <SessionProvider>
             <Navbar />

@@ -1,11 +1,11 @@
 // app/api/study-groups/[id]/join/route.js
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { enforceCredits } from "@/lib/creditEnforcement";
-import connectDb from "@/lib/connectDb";
-import StudyGroup from "@/models/studyGroup";
-import User from "@/models/user";
+import { authOptions } from "../../../app/api/auth/[...nextauth]/route";
+import { enforceCredits, addCredits } from "../../../lib/creditEnforcement";
+import connectDb from "../../../lib/connectDb";
+import StudyGroup from "../../../models/StudyGroup";
+import User from "../../../models/user";
 
 export const dynamic = "force-dynamic";
 
